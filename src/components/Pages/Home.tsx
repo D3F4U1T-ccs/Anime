@@ -13,6 +13,7 @@ interface Anime {
   description: string;
   thumbnail: string;
   episodes: Episode[];
+  
 }
 
 function Home() {
@@ -47,6 +48,7 @@ function Home() {
               key={anime._id}
               className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden transform transition hover:-translate-y-1 hover:shadow-xl"
             >
+                
               <img
                 src={anime.thumbnail}
                 alt={anime.name}

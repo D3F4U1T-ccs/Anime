@@ -9,7 +9,6 @@ const jwt = require('jsonwebtoken'); // ← ОСТАВЛЯЕМ ТОЛЬКО ЭТ
 const Anime = require('./models/Anime');
 const { sendCodeToEmail, checkVerificationCode } = require('./Verification');
 const verifyAdmin = require("./middleware/verifyAdmin");
-const Anime = require("./models/Anime");
 
 
 const app = express();
@@ -36,7 +35,11 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
     }
 });
 
-
+// Проверка, админ ли пользователь
+app.get("/api/check-admin", verifyAdmin, (req, res) => {
+    // Если дошли сюда, значит токен валиден и пользователь — админ
+    res.json({ message: "Вы админ" });
+});
 // Получить все аниме
 app.get('/api/anime', async (req, res) => {
     try {

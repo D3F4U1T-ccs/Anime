@@ -4,8 +4,8 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  isAdmin: { type: Boolean, default: false }, // 🟢 новое поле
   v: { type: Number, default: 0 },
+  isAdmin: { type: Boolean, default: false }, // 🟢 новое поле
   verificationCode: { type: String },
 });
 
