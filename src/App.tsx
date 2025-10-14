@@ -1,0 +1,28 @@
+import { Route, Routes } from "react-router-dom";
+import "./App.css";
+import Navbar from "./components/Pages/Shared/Navbar";
+
+import Home from "./components/Pages/Home";
+import Contact from "./components/Pages/Contact";
+import Footer from "./components/Pages/Shared/Footer";
+import Login from "./components/Pages/Shared/login";
+import Register from "./components/Pages/Shared/register";
+import Verification from "./components/Pages/Verification";
+
+function App() {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/Contact' element={<Contact />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/register' element={<Register />} />
+        <Route path='/verification' element={<Verification />} />
+      </Routes>
+      <Footer/>
+    </>
+  );
+}
+
+export default App;
