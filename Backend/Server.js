@@ -6,8 +6,11 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // ← ОСТАВЛЯЕМ ТОЛЬКО ЭТУ
-
+const Anime = require('./models/Anime');
 const { sendCodeToEmail, checkVerificationCode } = require('./Verification');
+const verifyAdmin = require("./middleware/verifyAdmin");
+const Anime = require("./models/Anime");
+
 
 const app = express();
 app.use(express.json());
@@ -19,6 +22,42 @@ mongoose.connect(
     'mongodb+srv://kira:d16438569089080@cluster0.dcm6akl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
 );
 
+// Только админ может добавлять аниме
+app.post("/api/anime/add", verifyAdmin, async (req, res) => {
+    const { name, date, rating, description, thumbnail, episodes } = req.body;
+
+    try {
+        const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
+        await newAnime.save();
+        res.status(201).json({ message: "Аниме успешно добавлено!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Ошибка при добавлении аниме" });
+    }
+});
+
+
+// Получить все аниме
+app.get('/api/anime', async (req, res) => {
+    try {
+        const animeList = await Anime.find();
+        res.json(animeList);
+    } catch (err) {
+        res.status(500).json({ message: 'Ошибка при получении списка аниме' });
+    }
+});
+
+// Добавить новое аниме (пока без авторизации, потом ограничим для админов)
+app.post('/api/anime', async (req, res) => {
+    const { name, date, rating, description, thumbnail, episodes } = req.body;
+    try {
+        const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
+        await newAnime.save();
+        res.status(201).json({ message: 'Аниме добавлено!' });
+    } catch (err) {
+        res.status(500).json({ message: 'Ошибка при добавлении аниме' });
+    }
+});
 const User = require('./models/User');
 
 // Registration route

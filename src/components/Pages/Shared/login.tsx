@@ -43,7 +43,7 @@ function Login() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="px-3 py-2 rounded border border-slate-300 focus:ring-2 focus:ring-indigo-400"
+          className="px-3 py-2 rounded border text-slate-600 border-slate-300 focus:ring-2 focus:ring-indigo-400"
           required
         />
 
@@ -52,7 +52,7 @@ function Login() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="px-3 py-2 rounded border border-slate-300 focus:ring-2 focus:ring-indigo-400"
+          className="px-3 py-2 rounded border text-slate-600 border-slate-300 focus:ring-2 focus:ring-indigo-400"
           required
         />
 
