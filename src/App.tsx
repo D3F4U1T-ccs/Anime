@@ -8,20 +8,30 @@ import Footer from "./components/Pages/Shared/Footer";
 import Login from "./components/Pages/Shared/login";
 import Register from "./components/Pages/Shared/register";
 import Verification from "./components/Pages/Verification";
+import ProtectedAdminRoute from "./ProtectedAdminRoute";
 
 function App() {
   return (
     <>
       <Navbar />
       <Routes>
-        <Route path='/' element={<Home />} />
-        <Route path='/Contact' element={<Contact />} />
-        <Route path='/login' element={<Login />} />
-        <Route path='/register' element={<Register />} />
-        <Route path='/verification' element={<Verification />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verification" element={<Verification />} />
+
+        {/* 🔒 защищённая админка */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedAdminRoute>
+              <Admin />
+            </ProtectedAdminRoute>
+          }
+        />
       </Routes>
-      <Footer/>
+      <Footer />
     </>
   );
 }

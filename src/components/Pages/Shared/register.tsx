@@ -1,7 +1,5 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
 
 function Register() {
   const [name, setName] = useState("");
@@ -9,12 +7,17 @@ function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // защита от повторных кликов
+
     setError("");
     setSuccess("");
+    setLoading(true);
+
     try {
       const res = await fetch("http://localhost:5000/api/register", {
         method: "POST",
@@ -22,6 +25,7 @@ function Register() {
         body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
+
       if (res.ok) {
         setSuccess("Письмо для подтверждения отправлено на почту.");
         localStorage.setItem("pendingEmail", email);
@@ -31,40 +35,60 @@ function Register() {
       }
     } catch (err) {
       setError("Server error");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 shadow-lg rounded-lg p-8 w-full max-w-sm flex flex-col gap-4">
-        <h2 className="text-2xl text-gray-600 font-bold text-center mb-2">Register</h2>
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white dark:bg-slate-800 shadow-lg rounded-lg p-8 w-full max-w-sm flex flex-col gap-4"
+      >
+        <h2 className="text-2xl text-gray-600 font-bold text-center mb-2">
+          Register
+        </h2>
         {error && <div className="text-red-500 text-sm text-center">{error}</div>}
         {success && <div className="text-green-500 text-sm text-center">{success}</div>}
         <input
           type="text"
           placeholder="Username"
           value={name}
-          onChange={e => setName(e.target.value)}
-          className="px-3 py-2 rounded border text-gray-600  border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          onChange={(e) => setName(e.target.value)}
+          className="px-3 py-2 rounded border text-gray-600 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           required
+          disabled={loading}
         />
         <input
           type="email"
           placeholder="Email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="px-3 py-2 rounded border text-gray-600  border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          onChange={(e) => setEmail(e.target.value)}
+          className="px-3 py-2 rounded border text-gray-600 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           required
+          disabled={loading}
         />
         <input
           type="password"
           placeholder="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="px-3 py-2 rounded border text-gray-600  border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          onChange={(e) => setPassword(e.target.value)}
+          className="px-3 py-2 rounded border text-gray-600 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           required
+          disabled={loading}
         />
-        <button type="submit" className="bg-indigo-500 text-white  hover:bg-indigo-600  font-semibold py-2 rounded transition-colors">Register</button>
+        <button
+          type="submit"
+          disabled={loading}
+          className={`font-semibold py-2 rounded transition-colors text-white ${
+            loading
+              ? "bg-indigo-400 cursor-not-allowed"
+              : "bg-indigo-500 hover:bg-indigo-600"
+          }`}
+        >
+          {loading ? "Загрузка..." : "Register"}
+        </button>
       </form>
       <p className="text-sm text-center text-slate-600 dark:text-slate-300 mt-2">
         Уже есть аккаунт?{" "}

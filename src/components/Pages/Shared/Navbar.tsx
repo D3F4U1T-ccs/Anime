@@ -3,29 +3,28 @@ import { ModeToggle } from "@/components/Provider/mode-toggle";
 import { useAuth } from "../../../context/AuthContext";
 import { useState, useEffect, useRef } from "react";
 
+interface User {
+  name: string;
+  email: string;
+  isAdmin?: boolean;
+}
+
 function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout }: { user: User | null; logout: () => void } = useAuth();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Закрытие меню при клике вне его зоны
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    else document.removeEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Обработчик выхода
   const handleLogout = () => {
     logout();
     setOpen(false);
@@ -66,13 +65,25 @@ function Navbar() {
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
                   <div className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 border-b dark:border-slate-700">
                     {user.email}
                   </div>
+
+                  {/* 🟢 если админ — показываем пункт меню “Админ панель” */}
+                  {user.isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-slate-700 font-medium transition"
+                      onClick={() => setOpen(false)}
+                    >
+                      Админ панель
+                    </Link>
+                  )}
+
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-slate-700"
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 font-medium transition"
                   >
                     Выйти
                   </button>

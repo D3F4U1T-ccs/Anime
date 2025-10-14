@@ -5,161 +5,138 @@ dotenv.config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // ← ОСТАВЛЯЕМ ТОЛЬКО ЭТУ
+const jwt = require('jsonwebtoken');
 const Anime = require('./models/Anime');
 const { sendCodeToEmail, checkVerificationCode } = require('./Verification');
 const verifyAdmin = require("./middleware/verifyAdmin");
-
+const User = require("./models/User"); // ✅ только здесь один раз
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Connect to MongoDB
+// 🧹 Авто-удаление неверифицированных аккаунтов
+async function deleteUnverifiedUsers() {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  try {
+    const result = await User.deleteMany({
+      v: 0,
+      createdAt: { $lt: oneHourAgo },
+    });
+    if (result.deletedCount > 0) {
+      console.log(`🗑️ Удалено ${result.deletedCount} неверифицированных пользователей`);
+    }
+  } catch (err) {
+    console.error("Ошибка при удалении неверифицированных:", err);
+  }
+}
+// Проверять каждые 10 минут
+setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
+
+// Подключение к MongoDB
 mongoose.connect(
-    process.env.MONGO_URI ||
-    'mongodb+srv://kira:d16438569089080@cluster0.dcm6akl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
+  process.env.MONGO_URI ||
+  'mongodb+srv://kira:d16438569089080@cluster0.dcm6akl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
 );
 
 // Только админ может добавлять аниме
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
-    const { name, date, rating, description, thumbnail, episodes } = req.body;
-
-    try {
-        const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
-        await newAnime.save();
-        res.status(201).json({ message: "Аниме успешно добавлено!" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Ошибка при добавлении аниме" });
-    }
+  const { name, date, rating, description, thumbnail, episodes } = req.body;
+  try {
+    const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
+    await newAnime.save();
+    res.status(201).json({ message: "Аниме успешно добавлено!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Ошибка при добавлении аниме" });
+  }
 });
 
 // Проверка, админ ли пользователь
 app.get("/api/check-admin", verifyAdmin, (req, res) => {
-    // Если дошли сюда, значит токен валиден и пользователь — админ
-    res.json({ message: "Вы админ" });
+  res.json({ message: "Вы админ" });
 });
+
 // Получить все аниме
 app.get('/api/anime', async (req, res) => {
-    try {
-        const animeList = await Anime.find();
-        res.json(animeList);
-    } catch (err) {
-        res.status(500).json({ message: 'Ошибка при получении списка аниме' });
-    }
+  try {
+    const animeList = await Anime.find();
+    res.json(animeList);
+  } catch {
+    res.status(500).json({ message: 'Ошибка при получении списка аниме' });
+  }
 });
 
-// Добавить новое аниме (пока без авторизации, потом ограничим для админов)
-app.post('/api/anime', async (req, res) => {
-    const { name, date, rating, description, thumbnail, episodes } = req.body;
-    try {
-        const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
-        await newAnime.save();
-        res.status(201).json({ message: 'Аниме добавлено!' });
-    } catch (err) {
-        res.status(500).json({ message: 'Ошибка при добавлении аниме' });
-    }
-});
-const User = require('./models/User');
-
-// Registration route
+// Регистрация
 app.post('/api/register', async (req, res) => {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-        return res.status(400).json({ message: 'All fields required' });
-    try {
-        const existing = await User.findOne({ email });
-        if (existing)
-            return res.status(400).json({ message: 'Email already registered' });
-        const hash = await bcrypt.hash(password, 10);
-        const user = new User({ name, email, password: hash, v: 0 });
-        await user.save();
-        await sendCodeToEmail(email);
-        res.status(201).json({ message: 'Код подтверждения отправлен на почту' });
-    } catch (err) {
-        console.error('Registration error:', err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
+  const { name, email, password } = req.body;
+  if (!name || !email || !password)
+    return res.status(400).json({ message: 'All fields required' });
 
-// Повторная отправка кода
-app.post('/api/send-code', async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email required' });
-    try {
-        await sendCodeToEmail(email);
-        res.json({ message: 'Код отправлен на почту' });
-    } catch (err) {
-        res.status(500).json({ message: 'Ошибка отправки кода' });
-    }
+  try {
+    const existing = await User.findOne({ email });
+    if (existing)
+      return res.status(400).json({ message: 'Email already registered' });
+
+    const hash = await bcrypt.hash(password, 10);
+    const user = new User({ name, email, password: hash, v: 0 });
+    await user.save();
+    await sendCodeToEmail(email);
+    res.status(201).json({ message: 'Код подтверждения отправлен на почту' });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Проверка кода
 app.post('/api/verify-code', async (req, res) => {
-    const { email, code } = req.body;
-    if (!email || !code)
-        return res.status(400).json({ message: 'Email и код обязательны' });
-    try {
-        const ok = await checkVerificationCode(email, code);
-        if (ok) {
-            // ✅ обновляем статус верификации пользователя
-            await User.updateOne({ email }, { v: 1 });
-            res.json({ message: 'Почта подтверждена!' });
-        } else {
-            res.status(400).json({ message: 'Неверный код' });
-        }
+  const { email, code } = req.body;
+  if (!email || !code)
+    return res.status(400).json({ message: 'Email и код обязательны' });
 
-
-    } catch (err) {
-        res.status(500).json({ message: 'Ошибка проверки кода' });
-    }
-});
-
-// Подтверждение email
-app.get('/api/verify/:token', async (req, res) => {
-    const { token } = req.params;
-    const ok = await verifyUser(token);
+  try {
+    const ok = await checkVerificationCode(email, code);
     if (ok) {
-        res.send('<h2>Почта успешно подтверждена! Теперь вы можете войти.</h2>');
+      await User.updateOne({ email }, { v: 1 });
+      res.json({ message: 'Почта подтверждена!' });
     } else {
-        res.status(400).send('<h2>Ошибка подтверждения. Ссылка недействительна или истекла.</h2>');
+      res.status(400).json({ message: 'Неверный код' });
     }
+  } catch {
+    res.status(500).json({ message: 'Ошибка проверки кода' });
+  }
 });
 
-// Login route
+// Логин
 app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password)
-        return res.status(400).json({ message: 'All fields required' });
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ message: 'All fields required' });
 
-    try {
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: 'Invalid credentials' });
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (user.v !== 1) return res.status(400).json({ message: 'Email not verified' });
 
-        if (user.v !== 1)
-            return res.status(400).json({ message: 'Email not verified' });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(400).json({ message: 'Invalid credentials' });
 
-        const match = await bcrypt.compare(password, user.password);
-        if (!match)
-            return res.status(400).json({ message: 'Invalid credentials' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-        const token = jwt.sign(
-            { id: user._id, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        res.json({
-            message: 'Login successful',
-            token,
-            user: { name: user.name, email: user.email },
-        });
-    } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ message: 'Server error' });
-    }
+    res.json({
+      message: 'Login successful',
+      token,
+      user: { name: user.name, email: user.email, isAdmin: user.isAdmin },
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
