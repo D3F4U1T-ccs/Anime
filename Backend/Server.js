@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const Anime = require('./models/Anime');
 const { sendCodeToEmail, checkVerificationCode } = require('./Verification');
 const verifyAdmin = require("./middleware/verifyAdmin");
-const User = require("./models/User"); // ✅ только здесь один раз
+const User = require("./models/User");
 
 const app = express();
 app.use(express.json());
@@ -30,7 +30,6 @@ async function deleteUnverifiedUsers() {
     console.error("Ошибка при удалении неверифицированных:", err);
   }
 }
-// Проверять каждые 10 минут
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
 
 // Подключение к MongoDB
@@ -39,11 +38,38 @@ mongoose.connect(
   'mongodb+srv://kira:d16438569089080@cluster0.dcm6akl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
 );
 
-// Только админ может добавлять аниме
+// 🔹 Функция для создания slug
+const slugify = (text) =>
+  text
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, '-')           // пробелы → тире
+    .replace(/[^\w\-]+/g, '')       // удалить всё лишнее
+    .replace(/\-\-+/g, '-')         // двойные тире → одно
+    .replace(/^-+/, '')             // убрать тире в начале
+    .replace(/-+$/, '');            // убрать тире в конце
+
+// 🔹 Только админ может добавлять аниме
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   const { name, date, rating, description, thumbnail, episodes } = req.body;
   try {
-    const newAnime = new Anime({ name, date, rating, description, thumbnail, episodes });
+    const slug = slugify(name);
+
+    // Проверяем, нет ли уже аниме с таким slug
+    const existing = await Anime.findOne({ slug });
+    if (existing)
+      return res.status(400).json({ message: "Аниме с таким названием уже существует" });
+
+    const newAnime = new Anime({
+      name,
+      slug,
+      date,
+      rating,
+      description,
+      thumbnail,
+      episodes,
+    });
+
     await newAnime.save();
     res.status(201).json({ message: "Аниме успешно добавлено!" });
   } catch (err) {
@@ -52,22 +78,33 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   }
 });
 
-// Проверка, админ ли пользователь
+// 🔹 Проверка, админ ли пользователь
 app.get("/api/check-admin", verifyAdmin, (req, res) => {
   res.json({ message: "Вы админ" });
 });
 
-// Получить все аниме
-app.get('/api/anime', async (req, res) => {
+// 🔹 Получить все аниме
+app.get("/api/anime", async (req, res) => {
   try {
-    const animeList = await Anime.find();
-    res.json(animeList);
-  } catch {
-    res.status(500).json({ message: 'Ошибка при получении списка аниме' });
+    const all = await Anime.find();
+    res.json(all);
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при получении списка аниме" });
   }
 });
 
-// Регистрация
+// 🔹 Получить одно аниме по slug
+app.get("/api/anime/:slug", async (req, res) => {
+  try {
+    const anime = await Anime.findOne({ slug: req.params.slug });
+    if (!anime) return res.status(404).json({ message: "Аниме не найдено" });
+    res.json(anime);
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при получении аниме" });
+  }
+});
+
+// 🔹 Регистрация
 app.post('/api/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password)
@@ -89,7 +126,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Проверка кода
+// 🔹 Проверка кода
 app.post('/api/verify-code', async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code)
@@ -108,7 +145,7 @@ app.post('/api/verify-code', async (req, res) => {
   }
 });
 
-// Логин
+// 🔹 Логин
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)

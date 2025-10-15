@@ -9,6 +9,7 @@ import Login from "./components/Pages/Shared/login";
 import Register from "./components/Pages/Shared/register";
 import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
+import AnimePage from "./components/Pages/AnimePage";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verification" element={<Verification />} />
+        <Route path="/anime/:id" element={<AnimePage />} />
 
         {/* 🔒 защищённая админка */}
         <Route

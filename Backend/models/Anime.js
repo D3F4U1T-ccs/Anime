@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const AnimeSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -12,6 +12,18 @@ const AnimeSchema = new mongoose.Schema({
       url: String,
     },
   ],
+  slug: { type: String, required: true, unique: true },
 });
 
-module.exports = mongoose.model('Anime', AnimeSchema);
+// 👇 Добавляем автоматическую генерацию slug перед сохранением
+AnimeSchema.pre("validate", function (next) {
+  if (!this.slug && this.name) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-") // заменяет пробелы и символы на "-"
+      .replace(/(^-|-$)+/g, ""); // убирает дефисы в начале/конце
+  }
+  next();
+});
+
+module.exports = mongoose.model("Anime", AnimeSchema);
