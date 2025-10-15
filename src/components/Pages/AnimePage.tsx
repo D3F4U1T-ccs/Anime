@@ -8,7 +8,8 @@ interface Episode {
 
 interface Anime {
   _id: string;
-  name: string;
+  nameRu: string;
+  nameEn: string;
   date: string;
   rating: number;
   description: string;
@@ -42,20 +43,20 @@ function AnimePage() {
       <div className="flex flex-col md:flex-row gap-6">
         <img
           src={anime.thumbnail}
-          alt={anime.name}
+          alt={anime.nameRu}
           className="w-full md:w-1/3 rounded-xl shadow-lg object-cover"
         />
         <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{anime.name}</h1>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-white">
+            {anime.nameRu} <span className="text-slate-500 text-lg">({anime.nameEn})</span>
+          </h1>
           <p className="text-slate-600 dark:text-slate-300">{anime.description}</p>
           <p className="text-yellow-500 font-semibold">⭐ {anime.rating}</p>
           <p className="text-slate-500 text-sm">📅 {anime.date}</p>
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold mt-8 mb-4 text-slate-800 dark:text-white">
-        Серии
-      </h2>
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-slate-800 dark:text-white">Серии</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {anime.episodes.map((ep) => (
