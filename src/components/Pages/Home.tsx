@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-interface Episode {
-  number: number;
-  url: string;
-}
-
 interface Anime {
   _id: string;
   slug: string;
@@ -15,7 +10,7 @@ interface Anime {
   rating: number;
   description: string;
   thumbnail: string;
-  episodes: Episode[];
+  genres?: string[];
 }
 
 function Home() {
@@ -39,7 +34,7 @@ function Home() {
     );
 
   return (
-    <div className="max-w-[1000px] bg-slate-600 mx-auto px-4 sm:px-8 py-10">
+    <div className="max-w-[1000px] bg-slate-400 mt-56 mx-auto px-4 sm:px-8 py-10">
       <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-8 text-center">
         📺 Популярное аниме
       </h1>
@@ -54,10 +49,10 @@ function Home() {
             <div
               key={anime._id}
               onClick={() => navigate(`/anime/${anime.slug}`)}
-              className="cursor-pointer flex  flex-col items-center group"
+              className="cursor-pointer flex flex-col items-center group"
             >
               {/* картинка */}
-              <div className="relative z-10 w-52 h-52 rounded-full overflow-hidden shadow-lg  ">
+              <div className="relative z-10 w-52 h-52 rounded-full overflow-hidden shadow-lg">
                 <img
                   src={anime.thumbnail}
                   alt={anime.nameEn}
@@ -66,7 +61,7 @@ function Home() {
               </div>
 
               {/* нижний блок */}
-              <div className="-mt-[120px] w-52 bg-white  dark:bg-slate-800 rounded-3xl pt-10 pb-6 px-4 text-center shadow-md transition-all duration-300 group-hover:shadow-xl">
+              <div className="-mt-[120px] w-52 bg-white dark:bg-slate-800 rounded-3xl pt-10 pb-6 px-4 text-center shadow-md transition-all duration-300 group-hover:shadow-xl">
                 <h2 className="text-lg mt-24 font-bold text-slate-800 dark:text-white truncate">
                   {anime.nameRu}
                 </h2>

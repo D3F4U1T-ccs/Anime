@@ -6,7 +6,8 @@ const EpisodeSchema = new mongoose.Schema({
 });
 
 const SeasonSchema = new mongoose.Schema({
-  seasonNumber: { type: Number, required: true },
+  seasonNumber: { type: Number, required: false, default: 1 },
+
   episodes: [EpisodeSchema],
 });
 
@@ -24,12 +25,18 @@ const AnimeSchema = new mongoose.Schema({
   // 🎭 Жанры (массив строк)
   genres: [{ type: String }],
 
+  types: [{ type: String }],
+
   slug: { type: String, required: true, unique: true },
-});
+}, { versionKey: false, timestamps: true }); // ← вот сюда
+
 
 // 🧩 Генерация slug из английского имени
 AnimeSchema.pre("validate", function (next) {
-  if (!this.slug && this.nameEn) {
+  // если slug уже есть — не трогаем
+  if (this.slug) return next();
+
+  if (this.nameEn) {
     this.slug = this.nameEn
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -37,5 +44,6 @@ AnimeSchema.pre("validate", function (next) {
   }
   next();
 });
+
 
 module.exports = mongoose.model("Anime", AnimeSchema);

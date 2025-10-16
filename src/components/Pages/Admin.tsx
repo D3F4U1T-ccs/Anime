@@ -7,7 +7,7 @@ interface Episode {
 }
 
 interface Season {
-  number: number;
+  seasonNumber: number;
   episodes: Episode[];
 }
 
@@ -16,22 +16,23 @@ interface AnimeData {
   nameEn: string;
   slug: string;
   date: string;
-  rating: number;
+  rating: string; // хранить как строку для инпута
   description: string;
   thumbnail: string;
-  tags: string[];
-  status: string;
+  genres: string[];
+  types: string[];
   seasons: Season[];
 }
 
 const GENRES = [
-  "Приключения", "Боевик", "Комедия", "Повседневность", "Романтика", "Драма",
-  "Фантастика", "Фэнтези", "Мистика", "Детектив", "Триллер", "Психология"
+  "Приключения", "Боевик", "Комедия", "Повседневность", "Романтика",
+  "Драма", "Фантастика", "Фэнтези", "Мистика", "Детектив", "Триллер", "Психология"
 ];
 
-const STATUSES = [
-  "Онгоинг", "2025", "2024", "2023", "2022",
-  "2015–2021", "2008–2014", "2000–2007", "до 2000"
+const TYPES = [
+  "Боевые искусства", "Вампиры", "Военное", "Демоны", "Игры", "История",
+  "Космос", "Магия", "Меха", "Музыка", "Самураи", "Сёнен",
+  "Спорт", "Суперсила", "Ужасы", "Школа"
 ];
 
 function Admin() {
@@ -40,19 +41,20 @@ function Admin() {
     nameEn: "",
     slug: "",
     date: "",
-    rating: 0,
+    rating: "",
     description: "",
     thumbnail: "",
-    tags: [],
-    status: "Онгоинг",
-    seasons: [{ number: 1, episodes: [] }]
+    genres: [],
+    types: [],
+    seasons: [{ seasonNumber: 1, episodes: [] }],
   });
 
   const [msg, setMsg] = useState("");
+  const [slugError, setSlugError] = useState("");
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // Проверка администратора
+  // 🔒 Проверка администратора
   useEffect(() => {
     if (!token) {
       navigate("/login");
@@ -69,140 +71,258 @@ function Admin() {
       .catch(() => navigate("/"));
   }, [token, navigate]);
 
-  // Изменение полей
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setAnime({ ...anime, [e.target.name]: e.target.value });
+  // 📝 Обновление полей
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    if (name === "nameEn") {
+      const generatedSlug = value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+      setAnime(prev => ({ ...prev, nameEn: value, slug: generatedSlug }));
+      setSlugError("");
+    } else if (name === "slug") {
+      const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+      if (cleaned !== value) {
+        setSlugError("❌ Slug может содержать только латиницу, цифры и дефисы");
+      } else setSlugError("");
+      setAnime(prev => ({ ...prev, slug: cleaned }));
+    } else if (name === "rating") {
+      setAnime(prev => ({ ...prev, rating: value })); // rating как строка
+    } else {
+      setAnime(prev => ({ ...prev, [name]: value }));
+    }
   };
 
-  // Переключение жанров
-  const toggleTag = (tag: string) => {
+  // 🎭 Жанры
+  const toggleGenre = (genre: string) => {
     setAnime(prev => ({
       ...prev,
-      tags: prev.tags.includes(tag)
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag],
+      genres: prev.genres.includes(genre)
+        ? prev.genres.filter(g => g !== genre)
+        : [...prev.genres, genre],
     }));
   };
 
-  // Добавить сезон
+  // 📂 Типы
+  const toggleType = (type: string) => {
+    setAnime(prev => ({
+      ...prev,
+      types: prev.types.includes(type)
+        ? prev.types.filter(t => t !== type)
+        : [...prev.types, type],
+    }));
+  };
+
+  // ➕ Сезоны
   const addSeason = () => {
     setAnime(prev => ({
       ...prev,
       seasons: [
         ...prev.seasons,
-        { number: prev.seasons.length + 1, episodes: [] },
+        { seasonNumber: prev.seasons.length + 1, episodes: [] },
       ],
     }));
   };
 
-  // Удалить сезон
-  const deleteSeason = (seasonIndex: number) => {
-    const newSeasons = anime.seasons.filter((_, idx) => idx !== seasonIndex);
-    // переустанавливаем номера сезонов
-    newSeasons.forEach((s, i) => (s.number = i + 1));
-    setAnime({ ...anime, seasons: newSeasons });
+  const deleteSeason = (index: number) => {
+    const updated = anime.seasons.filter((_, i) => i !== index);
+    updated.forEach((s, i) => (s.seasonNumber = i + 1));
+    setAnime({ ...anime, seasons: updated });
   };
 
-  // Добавить серию
-  const addEpisode = (seasonIndex: number) => {
-    const newSeasons = [...anime.seasons];
-    const newEpNum = newSeasons[seasonIndex].episodes.length + 1;
-    newSeasons[seasonIndex].episodes.push({ number: newEpNum, url: "" });
-    setAnime({ ...anime, seasons: newSeasons });
+  // ➕ Серии
+  const addEpisode = (sIdx: number) => {
+    const updated = [...anime.seasons];
+    updated[sIdx].episodes.push({
+      number: updated[sIdx].episodes.length + 1,
+      url: "",
+    });
+    setAnime({ ...anime, seasons: updated });
   };
 
-  // Удалить серию
-  const deleteEpisode = (seasonIndex: number, episodeIndex: number) => {
-    const newSeasons = [...anime.seasons];
-    newSeasons[seasonIndex].episodes = newSeasons[seasonIndex].episodes.filter((_, i) => i !== episodeIndex);
-    // переустанавливаем номера серий
-    newSeasons[seasonIndex].episodes.forEach((ep, i) => (ep.number = i + 1));
-    setAnime({ ...anime, seasons: newSeasons });
+  const deleteEpisode = (sIdx: number, eIdx: number) => {
+    const updated = [...anime.seasons];
+    updated[sIdx].episodes.splice(eIdx, 1);
+    updated[sIdx].episodes.forEach((ep, i) => (ep.number = i + 1));
+    setAnime({ ...anime, seasons: updated });
   };
 
-  // Изменение URL серии
-  const handleEpisodeChange = (seasonIndex: number, episodeIndex: number, value: string) => {
-    const newSeasons = [...anime.seasons];
-    newSeasons[seasonIndex].episodes[episodeIndex].url = value;
-    setAnime({ ...anime, seasons: newSeasons });
+  const handleEpisodeChange = (sIdx: number, eIdx: number, value: string) => {
+    const updated = [...anime.seasons];
+    updated[sIdx].episodes[eIdx].url = value;
+    setAnime({ ...anime, seasons: updated });
   };
 
-  // Отправка
+  // 📤 Отправка формы
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMsg("");
 
+    if (slugError) return setMsg("❌ Исправь slug");
+    if (!anime.slug.trim()) return setMsg("❌ Slug не может быть пустым");
+    if (!anime.nameRu.trim() || !anime.nameEn.trim())
+      return setMsg("❌ Заполни названия");
+    if (anime.genres.length === 0)
+      return setMsg("❌ Выбери хотя бы один жанр");
+
     try {
+      const submitData = { ...anime, rating: Number(anime.rating) };
       const res = await fetch("http://localhost:5000/api/anime/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(anime),
+        body: JSON.stringify(submitData),
       });
 
       const data = await res.json();
-      setMsg(data.message || "Добавлено!");
+      if (!res.ok) throw new Error(data.message || "Ошибка при добавлении");
+
+      setMsg("✅ Аниме успешно добавлено!");
+      setAnime({
+        nameRu: "",
+        nameEn: "",
+        slug: "",
+        date: "",
+        rating: "",
+        description: "",
+        thumbnail: "",
+        genres: [],
+        types: [],
+        seasons: [{ seasonNumber: 1, episodes: [] }],
+      });
     } catch (err) {
       console.error(err);
-      setMsg("Ошибка при добавлении аниме");
+      setMsg("❌ Ошибка при добавлении");
     }
   };
 
   return (
     <div className="max-w-5xl mx-auto mt-10 p-6 bg-gray-700 text-white rounded-2xl shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-center">Админ панель — Добавить аниме</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">
+        Админ панель — Добавить аниме
+      </h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input name="nameRu" placeholder="Название (RU)" value={anime.nameRu} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <input name="nameEn" placeholder="Название (EN)" value={anime.nameEn} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <input name="slug" placeholder="Slug (для URL)" value={anime.slug} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <input name="date" placeholder="Дата выхода" value={anime.date} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <input name="rating" placeholder="Рейтинг (1–10)" value={anime.rating} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <input name="thumbnail" placeholder="URL постера" value={anime.thumbnail} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
-        <textarea name="description" placeholder="Описание" value={anime.description} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600 h-28" required />
+        <input name="nameRu" placeholder="Название (RU)" value={anime.nameRu}
+          onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
 
-        {/* Статус */}
-        <select name="status" value={anime.status} onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600">
-          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <input name="nameEn" placeholder="Название (EN)" value={anime.nameEn}
+          onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
 
-        {/* Жанры */}
+        <input name="slug" placeholder="Slug (URL)" value={anime.slug}
+          onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
+        {slugError && <p className="text-red-400 text-sm">{slugError}</p>}
+
+        <div className="flex gap-2">
+          <input name="date" placeholder="Введите год (например 2024)"
+            value={anime.date} onChange={handleChange}
+            className="flex-1 p-2 rounded bg-gray-800 border border-gray-600" />
+          <button
+            type="button"
+            onClick={() =>
+              setAnime(prev => ({ ...prev, date: prev.date === "Онгоинг" ? "" : "Онгоинг" }))
+            }
+            className={`px-4 rounded transition ${anime.date === "Онгоинг"
+              ? "bg-indigo-500 border border-indigo-400"
+              : "bg-gray-800 border border-gray-600 hover:border-indigo-400"
+              }`}
+          >
+            Онгоинг
+          </button>
+        </div>
+
+        <h1 className="font-semibold mb-2">Рейтинг:</h1>
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            name="rating"
+            placeholder="Рейтинг (1–10)"
+            value={anime.rating}
+            onChange={handleChange}
+            className="p-2 rounded bg-gray-800 border border-gray-600 flex-1"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setAnime(prev => {
+                if (!prev.rating.includes(".")) return { ...prev, rating: prev.rating + "." };
+                return prev;
+              });
+            }}
+            className="px-3 py-1 bg-gray-600 rounded hover:bg-gray-700 transition"
+          >
+            .
+          </button>
+        </div>
+
+        <input name="thumbnail" placeholder="URL постера" value={anime.thumbnail}
+          onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
+
+        <textarea name="description" placeholder="Описание" value={anime.description}
+          onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600 h-28" required />
+
+        {/* 🎭 Жанры */}
         <div>
           <h3 className="font-semibold mb-2">Жанры:</h3>
           <div className="flex flex-wrap gap-2">
-            {GENRES.map(tag => (
+            {GENRES.map(genre => (
               <button
                 type="button"
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 rounded-full border transition ${
-                  anime.tags.includes(tag)
-                    ? "bg-indigo-500 border-indigo-400"
-                    : "bg-gray-800 border-gray-600 hover:border-indigo-400"
-                }`}
+                key={genre}
+                onClick={() => toggleGenre(genre)}
+                className={`px-3 py-1 rounded-full border transition ${anime.genres.includes(genre)
+                  ? "bg-indigo-500 border-indigo-400"
+                  : "bg-gray-800 border-gray-600 hover:border-indigo-400"
+                  }`}
               >
-                {tag}
+                {genre}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Сезоны */}
+        {/* 🧩 Типы */}
+        <div>
+          <h3 className="font-semibold mb-2">Типы:</h3>
+          <div className="flex flex-wrap gap-2">
+            {TYPES.map(type => (
+              <button
+                type="button"
+                key={type}
+                onClick={() => toggleType(type)}
+                className={`px-3 py-1 rounded-full border transition ${anime.types.includes(type)
+                  ? "bg-green-500 border-green-400"
+                  : "bg-gray-800 border-gray-600 hover:border-green-400"
+                  }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 📺 Сезоны и серии */}
         <div>
           <h3 className="font-semibold mt-4 mb-2">Сезоны и серии:</h3>
           {anime.seasons.map((season, sIdx) => (
             <div key={sIdx} className="mb-6 border border-gray-600 p-4 rounded-lg bg-gray-800">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="text-lg font-semibold">Сезон {season.number}</h4>
-                <button
-                  type="button"
-                  onClick={() => deleteSeason(sIdx)}
-                  className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm"
-                >
-                  Удалить сезон
-                </button>
+                <h4 className="text-lg font-semibold">Сезон {season.seasonNumber}</h4>
+                {anime.seasons.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => deleteSeason(sIdx)}
+                    className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm"
+                  >
+                    Удалить
+                  </button>
+                )}
               </div>
 
               {season.episodes.map((ep, eIdx) => (
@@ -210,7 +330,7 @@ function Admin() {
                   <input
                     placeholder={`Ссылка на ${ep.number}-ю серию`}
                     value={ep.url}
-                    onChange={(e) => handleEpisodeChange(sIdx, eIdx, e.target.value)}
+                    onChange={e => handleEpisodeChange(sIdx, eIdx, e.target.value)}
                     className="w-full p-2 rounded bg-gray-700 border border-gray-600"
                   />
                   <button
@@ -242,7 +362,10 @@ function Admin() {
           </button>
         </div>
 
-        <button type="submit" className="bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition mt-4">
+        <button
+          type="submit"
+          className="bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition mt-4"
+        >
           Добавить аниме
         </button>
       </form>

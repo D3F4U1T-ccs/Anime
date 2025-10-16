@@ -21,7 +21,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verification" element={<Verification />} />
-        <Route path="/anime/:id" element={<AnimePage />} />
+        <Route path="/anime/:slug" element={<AnimePage />} />
 
         {/* 🔒 защищённая админка */}
         <Route
