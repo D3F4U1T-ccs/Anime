@@ -15,7 +15,7 @@ interface AnimeData {
   nameRu: string;
   nameEn: string;
   slug: string;
-  date: string;
+  dates: string[];
   rating: string; // хранить как строку для инпута
   description: string;
   thumbnail: string;
@@ -40,7 +40,7 @@ function Admin() {
     nameRu: "",
     nameEn: "",
     slug: "",
-    date: "",
+    dates: [""],
     rating: "",
     description: "",
     thumbnail: "",
@@ -149,6 +149,24 @@ function Admin() {
     updated[sIdx].episodes.forEach((ep, i) => (ep.number = i + 1));
     setAnime({ ...anime, seasons: updated });
   };
+  // Добавить новую дату
+  const addDate = () => {
+    setAnime(prev => ({ ...prev, dates: [...prev.dates, ""] }));
+  };
+
+  // Удалить конкретную дату
+  const deleteDate = (index: number) => {
+    const updated = anime.dates.filter((_, i) => i !== index);
+    setAnime({ ...anime, dates: updated });
+  };
+
+  // Изменить значение даты
+  const handleDateChange = (index: number, value: string) => {
+    const updated = [...anime.dates];
+    updated[index] = value;
+    setAnime({ ...anime, dates: updated });
+  };
+
 
   const handleEpisodeChange = (sIdx: number, eIdx: number, value: string) => {
     const updated = [...anime.seasons];
@@ -187,7 +205,7 @@ function Admin() {
         nameRu: "",
         nameEn: "",
         slug: "",
-        date: "",
+        dates: [""],
         rating: "",
         description: "",
         thumbnail: "",
@@ -218,23 +236,35 @@ function Admin() {
           onChange={handleChange} className="p-2 rounded bg-gray-800 border border-gray-600" required />
         {slugError && <p className="text-red-400 text-sm">{slugError}</p>}
 
-        <div className="flex gap-2">
-          <input name="date" placeholder="Введите год (например 2024)"
-            value={anime.date} onChange={handleChange}
-            className="flex-1 p-2 rounded bg-gray-800 border border-gray-600" />
-          <button
-            type="button"
-            onClick={() =>
-              setAnime(prev => ({ ...prev, date: prev.date === "Онгоинг" ? "" : "Онгоинг" }))
-            }
-            className={`px-4 rounded transition ${anime.date === "Онгоинг"
-              ? "bg-indigo-500 border border-indigo-400"
-              : "bg-gray-800 border border-gray-600 hover:border-indigo-400"
-              }`}
-          >
-            Онгоинг
-          </button>
-        </div>
+        <h3 className="font-semibold mb-2">Годы выхода:</h3>
+        {anime.dates.map((d, i) => (
+          <div key={i} className="flex gap-2 mb-2">
+            <input
+              placeholder="Введите год (например 2024 или Онгоинг)"
+              value={d}
+              onChange={e => handleDateChange(i, e.target.value)}
+              className="flex-1 p-2 rounded bg-gray-800 border border-gray-600"
+            />
+            {anime.dates.length > 1 && (
+              <button
+                type="button"
+                onClick={() => deleteDate(i)}
+                className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={addDate}
+          className="bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 transition mb-3"
+        >
+          + Добавить дату
+        </button>
+
 
         <h1 className="font-semibold mb-2">Рейтинг:</h1>
         <div className="flex gap-2 items-center">

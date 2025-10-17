@@ -60,7 +60,7 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       nameRu,
       nameEn,
       slug: providedSlug,
-      date,
+      dates,
       rating,
       description,
       thumbnail,
@@ -104,7 +104,7 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       nameRu: nameRu.trim(),
       nameEn: nameEn.trim(),
       slug: finalSlug,
-      date: date || "",
+      dates: Array.isArray(dates) ? dates.filter(Boolean) : [],
       rating: Number(rating) || 0,
       description: description || "",
       thumbnail: thumbnail || "",
@@ -175,6 +175,27 @@ app.get("/api/check-admin", verifyAdmin, (req, res) => {
   res.json({ message: "Вы админ" });
 });
 
+app.post("/api/check-name", async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ message: "Имя обязательно" });
+
+  try {
+    const existing = await User.findOne({ name });
+    if (existing)
+      return res.status(400).json({ message: "Это имя уже занято" });
+    res.json({ message: "Имя свободно" });
+  } catch (err) {
+    console.error("Ошибка проверки имени:", err);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+
+const existingUser = await User.findOne({
+  name: { $regex: `^${name}$`, $options: "i" }, // ← Игнорирует регистр
+});
+
+
 // 🔹 Регистрация
 app.post("/api/register", async (req, res) => {
   const { name, email, password } = req.body;
@@ -182,8 +203,14 @@ app.post("/api/register", async (req, res) => {
     return res.status(400).json({ message: "Все поля обязательны" });
 
   try {
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email уже зарегистрирован" });
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail)
+      return res.status(400).json({ message: "Email уже зарегистрирован" });
+
+    const existingName = await User.findOne({ name });
+    if (existingName)
+      return res.status(400).json({ message: "Это имя уже занято, выбери другое" });
+
 
     const hash = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hash, v: 0 });

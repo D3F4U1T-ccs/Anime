@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Mail, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+// import { SiSimplelogin } from "react-icons/si";
 const Verification: React.FC = () => {
 	const [email, setEmail] = useState(() => localStorage.getItem("pendingEmail") || "");
 	const [code, setCode] = useState("");
@@ -79,7 +79,7 @@ const Verification: React.FC = () => {
 				</h2>
 
 				<p className="text-sm text-center mb-1 text-gray-500 dark:text-gray-400">
-					Пожалуйста, подтвердите свою почту в течение часа.  
+					Пожалуйста, подтвердите свою почту в течение часа.
 					Если вы не сделаете этого, ваш аккаунт будет автоматически удалён.
 				</p>
 
@@ -142,6 +142,7 @@ const Verification: React.FC = () => {
 
 				{/* Нижние кнопки */}
 				<div className={`flex gap-3 ${step === "success" ? "justify-center" : "justify-center"}`}>
+				
 					<button
 						onClick={openGmail}
 						className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"

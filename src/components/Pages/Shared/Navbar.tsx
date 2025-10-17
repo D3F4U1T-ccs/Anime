@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ModeToggle } from "@/components/Provider/mode-toggle";
 import { useAuth } from "../../../context/AuthContext";
 import { useState, useEffect, useRef } from "react";
-
+import { FaRegCircleUser } from "react-icons/fa6";
 interface User {
   name: string;
   email: string;
@@ -42,7 +42,7 @@ function Navbar() {
 
         <div className="flex items-center gap-6 relative">
           <Link to="/" className="text-slate-700 dark:text-slate-100 font-medium hover:text-indigo-500">
-            Home
+            Anime
           </Link>
           <Link to="/contact" className="text-slate-700 dark:text-slate-100 font-medium hover:text-indigo-500">
             Contact
@@ -59,9 +59,9 @@ function Navbar() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpen((prev) => !prev)}
-                className="text-slate-800 dark:text-white font-semibold hover:text-indigo-500"
+                className="text-slate-800 flex items-center gap-1 dark:text-white font-semibold hover:text-indigo-500"
               >
-                {user.name}
+              {user.name}  <FaRegCircleUser />
               </button>
 
               {open && (

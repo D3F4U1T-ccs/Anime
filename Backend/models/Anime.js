@@ -14,7 +14,8 @@ const SeasonSchema = new mongoose.Schema({
 const AnimeSchema = new mongoose.Schema({
   nameRu: { type: String, required: true }, // 🇷🇺 На сайте
   nameEn: { type: String, required: true }, // 🇬🇧 В ссылке (slug)
-  date: { type: String, required: true },
+  dates: [{ type: String, required: true }],
+
   rating: { type: Number, required: true },
   description: { type: String, required: true },
   thumbnail: { type: String, required: true },

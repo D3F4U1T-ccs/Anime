@@ -16,7 +16,7 @@ interface Anime {
   slug: string;
   nameRu: string;
   nameEn: string;
-  date: string;
+  dates: string[];
   rating: number;
   description: string;
   thumbnail: string;
@@ -85,7 +85,12 @@ function AnimePage() {
           </h1>
           <p className="text-gray-300">{anime.description}</p>
           <p className="text-yellow-400 font-semibold">⭐ {anime.rating}</p>
-          <p className="text-gray-400 text-sm">📅 {anime.date}</p>
+          {anime.dates?.length > 0 && (
+            <p className="text-gray-400 text-sm">
+              📅 {anime.dates.join(", ")}
+            </p>
+          )}
+
           {anime.genres?.length > 0 && (
             <p className="text-gray-400 text-sm">🎭 Жанры: {anime.genres.join(", ")}</p>
           )}
@@ -131,7 +136,9 @@ function AnimePage() {
           )}
         </div>
       ))}
+
     </div>
+
   );
 }
 

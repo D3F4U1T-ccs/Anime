@@ -12,13 +12,28 @@ function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return; // защита от повторных кликов
+    if (loading) return;
 
     setError("");
     setSuccess("");
     setLoading(true);
 
     try {
+      // 🟡 Проверка имени перед регистрацией
+      const nameCheck = await fetch("http://localhost:5000/api/check-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const nameData = await nameCheck.json();
+
+      if (!nameCheck.ok) {
+        setError(nameData.message || "Ошибка проверки имени");
+        setLoading(false);
+        return;
+      }
+
+      // 🟢 Если имя свободно — идём дальше
       const res = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,7 +70,7 @@ function Register() {
           type="text"
           placeholder="Username"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value.trim())}
           className="px-3 py-2 rounded border text-gray-600 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           required
           disabled={loading}
