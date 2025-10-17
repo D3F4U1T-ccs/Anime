@@ -22,6 +22,7 @@ interface Anime {
   thumbnail: string;
   seasons: Season[];
   genres: string[];
+  types: string[];
 }
 
 function AnimePage() {
@@ -86,10 +87,13 @@ function AnimePage() {
           <p className="text-yellow-400 font-semibold">⭐ {anime.rating}</p>
           <p className="text-gray-400 text-sm">📅 {anime.date}</p>
           {anime.genres?.length > 0 && (
-            <p className="text-gray-400 text-sm">
-              🎭 Жанры: {anime.genres.join(", ")}
-            </p>
+            <p className="text-gray-400 text-sm">🎭 Жанры: {anime.genres.join(", ")}</p>
           )}
+
+          {anime.types?.length > 0 && (
+            <p className="text-gray-400 text-sm">🧩 Типы: {anime.types.join(", ")}</p>
+          )}
+
         </div>
       </div>
 
@@ -111,7 +115,7 @@ function AnimePage() {
           {season.episodes.length === 0 ? (
             <p className="text-gray-500">Серий пока нет</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-3">
               {season.episodes.map((ep) => (
                 <a
                   key={ep.number}
@@ -120,7 +124,7 @@ function AnimePage() {
                   rel="noopener noreferrer"
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-center transition"
                 >
-                  Смотреть {ep.number}-ю серию
+                  {ep.number} серия
                 </a>
               ))}
             </div>

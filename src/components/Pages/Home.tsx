@@ -8,9 +8,9 @@ interface Anime {
   nameEn: string;
   date: string;
   rating: number;
-  description: string;
   thumbnail: string;
   genres?: string[];
+  types?: string[];
 }
 
 function Home() {
@@ -51,7 +51,6 @@ function Home() {
               onClick={() => navigate(`/anime/${anime.slug}`)}
               className="cursor-pointer flex flex-col items-center group"
             >
-              {/* картинка */}
               <div className="relative z-10 w-52 h-52 rounded-full overflow-hidden shadow-lg">
                 <img
                   src={anime.thumbnail}
@@ -60,14 +59,26 @@ function Home() {
                 />
               </div>
 
-              {/* нижний блок */}
               <div className="-mt-[120px] w-52 bg-white dark:bg-slate-800 rounded-3xl pt-10 pb-6 px-4 text-center shadow-md transition-all duration-300 group-hover:shadow-xl">
                 <h2 className="text-lg mt-24 font-bold text-slate-800 dark:text-white truncate">
                   {anime.nameRu}
                 </h2>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">
-                  {anime.description}
-                </p>
+
+                {/* Жанры */}
+                {anime.genres && anime.genres.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                    🎭 {anime.genres.join(", ")}
+                  </p>
+                )}
+
+                {/* Типы */}
+                {anime.types && anime.types.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                    🧩 {anime.types.join(", ")}
+                  </p>
+                )}
+
+
                 <div className="flex justify-center items-center gap-3 mt-3 text-sm text-slate-500">
                   <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold">
                     ★ {anime.rating}

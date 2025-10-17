@@ -7,6 +7,6 @@ const userSchema = new mongoose.Schema({
   v: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
   verificationCode: { type: String },
-}, { timestamps: true }); // ✅ правильно — внутри new Schema
+}, {  versionKey: false, timestamps: true })
 
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);
