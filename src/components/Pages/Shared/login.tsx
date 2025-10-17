@@ -30,50 +30,56 @@ function Login() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-[60vh]">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-800 shadow-lg rounded-lg p-8 w-full max-w-sm flex flex-col gap-4"
-      >
-        <h2 className="text-2xl font-bold text-center mb-2">Login</h2>
-        {msg && <div className="text-red-500 text-sm text-center">{msg}</div>}
+    <div className="min-h-[100vh] flex items-center justify-center bg-gradient-to-br from-black via-neutral-900 to-gray-800 text-white px-4">
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8 animate-fadeIn">
+        <h2 className="text-3xl font-extrabold text-center mb-6 tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          Вход в аккаунт
+        </h2>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="px-3 py-2 rounded border text-slate-600 border-slate-300 focus:ring-2 focus:ring-indigo-400"
-          required
-        />
+        {msg && (
+          <div className="text-red-400 text-sm text-center mb-4">{msg}</div>
+        )}
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="px-3 py-2 rounded border text-slate-600 border-slate-300 focus:ring-2 focus:ring-indigo-400"
-          required
-        />
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder="Введите Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder-gray-400
+              focus:ring-2 focus:ring-white focus:outline-none transition-all"
+            required
+          />
 
-        <button
-          type="submit"
-          className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded transition-colors"
-        >
-          Login
-        </button>
+          <input
+            type="password"
+            placeholder="Введите пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder-gray-400
+              focus:ring-2 focus:ring-white focus:outline-none transition-all"
+            required
+          />
 
-        {/* Ссылка на регистрацию */}
-        <p className="text-sm text-center text-slate-600 dark:text-slate-300 mt-2">
+          <button
+            type="submit"
+            className="mt-2 bg-gradient-to-r from-white to-gray-400 text-black font-bold py-2.5 rounded-lg
+              shadow-lg hover:shadow-white/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          >
+            Войти
+          </button>
+        </form>
+
+        <p className="text-sm text-center text-gray-400 mt-5">
           Нет аккаунта?{" "}
           <Link
             to="/register"
-            className="text-indigo-500 hover:text-indigo-600 font-medium"
+            className="text-white font-semibold hover:text-gray-300 transition-colors"
           >
             Зарегистрироваться
           </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 }
