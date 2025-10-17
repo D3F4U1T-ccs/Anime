@@ -53,6 +53,7 @@ const normalizeSlug = (text) => {
     .replace(/(^-|-$)+/g, "");
 };
 
+
 // 🔹 Добавление аниме (только админ)
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   try {
@@ -170,11 +171,13 @@ app.get("/api/anime/:identifier", async (req, res) => {
   }
 });
 
+
 // 🔹 Проверка, админ ли пользователь
 app.get("/api/check-admin", verifyAdmin, (req, res) => {
+  // Если мидлвар verifyAdmin отработал без ошибок, 
+  // значит, пользователь является админом.
   res.json({ message: "Вы админ" });
 });
-
 // server.js
 
 // 🔹 Регистрация
@@ -225,28 +228,147 @@ app.post("/api/register", async (req, res) => {
     res.status(500).json({ message: "Ошибка на стороне сервера при регистрации" });
   }
 });
+// Server.js
+
+// server.js (РОУТ /api/verify-code)
 
 // 🔹 Проверка кода
 app.post("/api/verify-code", async (req, res) => {
   const { email, code } = req.body;
-  if (!email || !code)
-    return res.status(400).json({ message: "Email и код обязательны" });
+
+  const normalizedEmail = email.toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) { // Дополнительная проверка на всякий случай
+    return res.status(400).json({ message: "Пользователь не найден" });
+  }
 
   try {
-    const ok = await checkVerificationCode(email, code);
-    if (ok) {
-      await User.updateOne({ email }, { v: 1 });
-      res.json({ message: "Почта подтверждена!" });
+    const result = await checkVerificationCode(normalizedEmail, code);
+
+    if (result.ok) {
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      return res.json({
+        ok: true,
+        message: result.message || "Почта успешно подтверждена!",
+        token,
+        user: { name: user.name, email: user.email, isAdmin: user.isAdmin },
+      });
     } else {
-      res.status(400).json({ message: "Неверный код" });
+      // --- 💡 Обработка неверного кода и счетчик попыток (ОСТАВЛЕНО БЕЗ ИЗМЕНЕНИЙ) ---
+
+      // Если код неверен (и не просрочен, что уже отработано в Verification.js)
+      if (result.message === "Неверный код.") {
+
+        // Уменьшаем попытки и проверяем на блокировку
+        user.codeAttempts = (user.codeAttempts || 0) + 1;
+
+        if (user.codeAttempts >= MAX_ATTEMPTS) {
+          const LOCKOUT_PERIOD_MS = 48 * 60 * 60 * 1000;
+          user.attemptResetTime = new Date(Date.now()); // Обновляем таймер блокировки
+
+          const unlockTime = new Date(Date.now() + LOCKOUT_PERIOD_MS);
+          const hoursRemaining = Math.ceil(LOCKOUT_PERIOD_MS / (1000 * 60 * 60));
+
+          await user.save();
+
+          return res.status(429).json({
+            message: `Превышен лимит проверки кода (${MAX_ATTEMPTS}). Попробуйте через ${hoursRemaining} ч.`,
+            action: "LIMIT_EXCEEDED",
+            attemptsRemaining: 0,
+            unlocksAt: unlockTime.toISOString()
+          });
+        } else {
+          await user.save();
+        }
+
+        // Добавляем информацию о оставшихся попытках в ответ
+        return res.status(400).json({
+          message: result.message || "Неверный код",
+          attemptsRemaining: MAX_ATTEMPTS - user.codeAttempts
+        });
+      }
+
+      // Для прочих ошибок (например, "Срок действия кода истек")
+      return res.status(400).json({ message: result.message || "Неверный код" });
     }
   } catch (err) {
     console.error("Ошибка проверки кода:", err);
     res.status(500).json({ message: "Ошибка проверки кода" });
   }
 });
+// ... Server.js (часть с роутами)
 
-// server.js
+// 🔹 Повторная отправка кода
+app.post("/api/send-code", async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email обязателен" });
+  }
+  const normalizedEmail = email.toLowerCase();
+
+  const MAX_ATTEMPTS = 3;
+  const LOCKOUT_PERIOD_MS = 48 * 60 * 60 * 1000; // 48 часов в миллисекундах
+
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    if (user.v === 1) {
+      return res.status(400).json({ message: "Аккаунт уже верифицирован. Попробуйте войти." });
+    }
+
+    const now = Date.now();
+    const attemptResetTime = user.attemptResetTime.getTime();
+
+    // 1. Проверяем, нужно ли сбросить счетчик (если прошло 48 часов)
+    if (now - attemptResetTime > LOCKOUT_PERIOD_MS) {
+      user.codeAttempts = 0;
+      user.attemptResetTime = new Date(now);
+      await user.save();
+    }
+
+    // 2. Проверяем лимит после сброса
+    if (user.codeAttempts >= MAX_ATTEMPTS) {
+      const unlockTime = new Date(attemptResetTime + LOCKOUT_PERIOD_MS);
+      const msRemaining = unlockTime.getTime() - now;
+      const hoursRemaining = Math.ceil(msRemaining / (1000 * 60 * 60));
+
+      return res.status(429).json({ // 429 Too Many Requests
+        message: `Лимит отправки кода (${MAX_ATTEMPTS}) превышен. Попробуйте через ${hoursRemaining} ч.`,
+        action: "LIMIT_EXCEEDED",
+        attemptsRemaining: 0,
+        // Возвращаем время разблокировки, чтобы фронтенд мог это показать
+        unlocksAt: unlockTime.toISOString()
+      });
+    }
+
+    // 3. Увеличиваем счетчик и обновляем attemptResetTime (это важно!)
+    user.codeAttempts = (user.codeAttempts || 0) + 1;
+    user.attemptResetTime = new Date(now);
+    await user.save();
+
+    // Вызов функции, которая отправит код и обновит codeExpiresAt
+    await sendCodeToEmail(normalizedEmail);
+
+    res.json({
+      message: "Новый код подтверждения отправлен на вашу почту. Он действует 30 минут.",
+      attemptsRemaining: MAX_ATTEMPTS - user.codeAttempts // Оставшиеся попытки
+    });
+  } catch (err) {
+    console.error("Ошибка повторной отправки кода:", err);
+    res.status(500).json({ message: "Ошибка сервера при отправке кода" });
+  }
+});
+// ...
+// Server.js
 
 // 🔹 Логин
 app.post("/api/login", async (req, res) => {
@@ -255,19 +377,26 @@ app.post("/api/login", async (req, res) => {
     return res.status(400).json({ message: "Все поля обязательны" });
 
   try {
-    // <<< ИЗМЕНЕНИЕ ЗДЕСЬ: ищем email в нижнем регистре
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(400).json({ message: "Неверные данные" });
-    if (user.v !== 1)
-      return res.status(400).json({ message: "Email не подтвержден" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: "Неверные данные" });
+    // 💡 1. ПРОВЕРКА ПАРОЛЯ
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Неверные данные" });
 
+    // 💡 2. ПРОВЕРКА ВЕРИФИКАЦИИ (только если пароль верный)
+    if (user.v !== 1) console.log('После проверки v =', user.v);
+
+    return res.status(403).json({
+      message: "Email не подтвержден. Требуется верификация.",
+      action: "VERIFY_REQUIRED"
+    });
+
+    // 💡 3. ГЕНЕРАЦИЯ ТОКЕНА (только если пароль верный И верификация пройдена)
     const token = jwt.sign(
-      { id: user._id, email: user.email, isAdmin: user.isAdmin },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: '1h' }
     );
 
     res.json({
@@ -280,7 +409,6 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: "Ошибка сервера" });
   }
 });
-
 // 🚀 Запуск
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

@@ -49,7 +49,7 @@ function Register() {
         <input
           type="text"
           placeholder="Username"
-          value={name}
+          
           onChange={e => setName(e.target.value)}
           className="px-3 py-2 rounded border text-gray-600  border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           required
