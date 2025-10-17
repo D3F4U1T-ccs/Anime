@@ -60,7 +60,7 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       nameRu,
       nameEn,
       slug: providedSlug,
-      dates,
+      date,
       rating,
       description,
       thumbnail,
@@ -104,7 +104,7 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       nameRu: nameRu.trim(),
       nameEn: nameEn.trim(),
       slug: finalSlug,
-      dates: Array.isArray(dates) ? dates.filter(Boolean) : [],
+      date: date || "",
       rating: Number(rating) || 0,
       description: description || "",
       thumbnail: thumbnail || "",
@@ -175,51 +175,54 @@ app.get("/api/check-admin", verifyAdmin, (req, res) => {
   res.json({ message: "Вы админ" });
 });
 
-app.post("/api/check-name", async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ message: "Имя обязательно" });
-
-  try {
-    const existing = await User.findOne({ name });
-    if (existing)
-      return res.status(400).json({ message: "Это имя уже занято" });
-    res.json({ message: "Имя свободно" });
-  } catch (err) {
-    console.error("Ошибка проверки имени:", err);
-    res.status(500).json({ message: "Ошибка сервера" });
-  }
-});
-
-
-const existingUser = await User.findOne({
-  name: { $regex: `^${name}$`, $options: "i" }, // ← Игнорирует регистр
-});
-
+// server.js
 
 // 🔹 Регистрация
 app.post("/api/register", async (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password)
+  if (!name || !email || !password) {
     return res.status(400).json({ message: "Все поля обязательны" });
+  }
+
+  // Приводим email к нижнему регистру для универсальности
+  const normalizedEmail = email.toLowerCase();
 
   try {
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail)
-      return res.status(400).json({ message: "Email уже зарегистрирован" });
+    // Проверяем, занят ли email (уже без учета регистра)
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
+      return res.status(400).json({ message: "Этот email уже зарегистрирован" });
+    }
 
-    const existingName = await User.findOne({ name });
-    if (existingName)
-      return res.status(400).json({ message: "Это имя уже занято, выбери другое" });
+    // <<< ИЗМЕНЕНИЕ ЗДЕСЬ: Проверка имени без учета регистра
+    // Мы используем регулярное выражение с флагом 'i' (insensitive)
+    const existingName = await User.findOne({
+      name: { $regex: new RegExp("^" + name + "$", "i") }
+    });
 
+    if (existingName) {
+      return res.status(400).json({ message: "Это имя пользователя уже занято" });
+    }
 
     const hash = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hash, v: 0 });
+    // Сохраняем email в нижнем регистре
+    const user = new User({ name, email: normalizedEmail, password: hash, v: 0 });
     await user.save();
-    await sendCodeToEmail(email);
+    await sendCodeToEmail(normalizedEmail);
     res.status(201).json({ message: "Код подтверждения отправлен на почту" });
+
   } catch (err) {
     console.error("Ошибка регистрации:", err);
-    res.status(500).json({ message: "Ошибка сервера" });
+    // Эта проверка остаётся как запасной вариант на случай гонки запросов
+    if (err.code === 11000) {
+      if (err.keyPattern.name) {
+        return res.status(400).json({ message: "Это имя пользователя уже занято" });
+      }
+      if (err.keyPattern.email) {
+        return res.status(400).json({ message: "Этот email уже зарегистрирован" });
+      }
+    }
+    res.status(500).json({ message: "Ошибка на стороне сервера при регистрации" });
   }
 });
 
@@ -243,6 +246,8 @@ app.post("/api/verify-code", async (req, res) => {
   }
 });
 
+// server.js
+
 // 🔹 Логин
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
@@ -250,7 +255,8 @@ app.post("/api/login", async (req, res) => {
     return res.status(400).json({ message: "Все поля обязательны" });
 
   try {
-    const user = await User.findOne({ email });
+    // <<< ИЗМЕНЕНИЕ ЗДЕСЬ: ищем email в нижнем регистре
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(400).json({ message: "Неверные данные" });
     if (user.v !== 1)
       return res.status(400).json({ message: "Email не подтвержден" });
