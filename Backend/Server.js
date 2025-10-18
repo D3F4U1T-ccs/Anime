@@ -194,7 +194,7 @@ app.post("/api/register", async (req, res) => {
     // Проверяем, занят ли email (уже без учета регистра)
     const existingEmail = await User.findOne({ email: normalizedEmail });
     if (existingEmail) {
-      return res.status(400).json({ message: "Этот email уже зарегистрирован" });
+      return res.status(400).json({ message: "Этот email уже зарегистрирован попробуйте войти!" });
     }
 
     // <<< ИЗМЕНЕНИЕ ЗДЕСЬ: Проверка имени без учета регистра
@@ -222,7 +222,7 @@ app.post("/api/register", async (req, res) => {
         return res.status(400).json({ message: "Это имя пользователя уже занято" });
       }
       if (err.keyPattern.email) {
-        return res.status(400).json({ message: "Этот email уже зарегистрирован" });
+        return res.status(400).json({ message: "Этот email уже зарегистрирован попробуйте войти!" });
       }
     }
     res.status(500).json({ message: "Ошибка на стороне сервера при регистрации" });
@@ -304,70 +304,74 @@ app.post("/api/verify-code", async (req, res) => {
 });
 // ... Server.js (часть с роутами)
 
-// 🔹 Повторная отправка кода
 app.post("/api/send-code", async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ message: "Email обязателен" });
-  }
-  const normalizedEmail = email.toLowerCase();
+  const { email, checkOnly } = req.body;
+  if (!email) return res.status(400).json({ message: "Email обязателен" });
 
+  const normalizedEmail = email.toLowerCase();
   const MAX_ATTEMPTS = 3;
-  const LOCKOUT_PERIOD_MS = 48 * 60 * 60 * 1000; // 48 часов в миллисекундах
+  const LOCKOUT_PERIOD_MS = 48 * 60 * 60 * 1000; // 48 часов
+  const now = Date.now();
 
   try {
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(404).json({ message: "Пользователь не найден" });
+    if (!user) return res.status(404).json({ message: "Пользователь не найден" });
+    if (user.v === 1) return res.status(400).json({ message: "Аккаунт уже верифицирован." });
+
+    const attemptResetTime = user.attemptResetTime ? user.attemptResetTime.getTime() : 0;
+
+    // 🟢 Если просто проверяем лимит
+    if (checkOnly) {
+      if (user.codeAttempts >= MAX_ATTEMPTS && now - attemptResetTime < LOCKOUT_PERIOD_MS) {
+        const unlockTime = new Date(attemptResetTime + LOCKOUT_PERIOD_MS);
+        return res.status(429).json({
+          action: "LIMIT_EXCEEDED",
+          message: "Превышен лимит проверки кода. Подождите немного.",
+          unlocksAt: unlockTime.toISOString()
+        });
+      }
+      return res.json({
+        attemptsRemaining: Math.max(0, MAX_ATTEMPTS - user.codeAttempts)
+      });
     }
 
-    if (user.v === 1) {
-      return res.status(400).json({ message: "Аккаунт уже верифицирован. Попробуйте войти." });
-    }
-
-    const now = Date.now();
-    const attemptResetTime = user.attemptResetTime.getTime();
-
-    // 1. Проверяем, нужно ли сбросить счетчик (если прошло 48 часов)
-    if (now - attemptResetTime > LOCKOUT_PERIOD_MS) {
+    // 🟠 Если прошло 48 часов — сбрасываем попытки
+    if (!user.attemptResetTime || now - attemptResetTime > LOCKOUT_PERIOD_MS) {
       user.codeAttempts = 0;
       user.attemptResetTime = new Date(now);
       await user.save();
     }
 
-    // 2. Проверяем лимит после сброса
+    // 🔴 Проверка лимита
     if (user.codeAttempts >= MAX_ATTEMPTS) {
       const unlockTime = new Date(attemptResetTime + LOCKOUT_PERIOD_MS);
-      const msRemaining = unlockTime.getTime() - now;
-      const hoursRemaining = Math.ceil(msRemaining / (1000 * 60 * 60));
-
-      return res.status(429).json({ // 429 Too Many Requests
-        message: `Лимит отправки кода (${MAX_ATTEMPTS}) превышен. Попробуйте через ${hoursRemaining} ч.`,
+      const hoursRemaining = Math.ceil((unlockTime - now) / (1000 * 60 * 60));
+      return res.status(429).json({
+        message: `Лимит (${MAX_ATTEMPTS}) превышен. Попробуйте через ${hoursRemaining} ч.`,
         action: "LIMIT_EXCEEDED",
         attemptsRemaining: 0,
-        // Возвращаем время разблокировки, чтобы фронтенд мог это показать
         unlocksAt: unlockTime.toISOString()
       });
     }
 
-    // 3. Увеличиваем счетчик и обновляем attemptResetTime (это важно!)
+    // 📨 Отправка кода
     user.codeAttempts = (user.codeAttempts || 0) + 1;
     user.attemptResetTime = new Date(now);
     await user.save();
 
-    // Вызов функции, которая отправит код и обновит codeExpiresAt
     await sendCodeToEmail(normalizedEmail);
 
     res.json({
-      message: "Новый код подтверждения отправлен на вашу почту. Он действует 30 минут.",
-      attemptsRemaining: MAX_ATTEMPTS - user.codeAttempts // Оставшиеся попытки
+      message: "Новый код подтверждения отправлен на вашу почту.",
+      attemptsRemaining: MAX_ATTEMPTS - user.codeAttempts
     });
+
   } catch (err) {
     console.error("Ошибка повторной отправки кода:", err);
     res.status(500).json({ message: "Ошибка сервера при отправке кода" });
   }
 });
-// ...
+
 // Server.js
 
 // 🔹 Логин
@@ -380,19 +384,20 @@ app.post("/api/login", async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(400).json({ message: "Неверные данные" });
 
-    // 💡 1. ПРОВЕРКА ПАРОЛЯ
+    // 💡 Проверяем пароль
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Неверные данные" });
 
-    // 💡 2. ПРОВЕРКА ВЕРИФИКАЦИИ (только если пароль верный)
-    if (user.v !== 1) console.log('После проверки v =', user.v);
+    // 💡 Проверяем верификацию
+    if (user.v !== 1) {
+      console.log('После проверки v =', user.v);
+      return res.status(403).json({
+        message: "Email не подтвержден. Требуется верификация.",
+        action: "VERIFY_REQUIRED"
+      });
+    }
 
-    return res.status(403).json({
-      message: "Email не подтвержден. Требуется верификация.",
-      action: "VERIFY_REQUIRED"
-    });
-
-    // 💡 3. ГЕНЕРАЦИЯ ТОКЕНА (только если пароль верный И верификация пройдена)
+    // 💡 Если всё ок — выдаём токен
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
@@ -404,11 +409,13 @@ app.post("/api/login", async (req, res) => {
       token,
       user: { name: user.name, email: user.email, isAdmin: user.isAdmin },
     });
+
   } catch (err) {
     console.error("Ошибка логина:", err);
     res.status(500).json({ message: "Ошибка сервера" });
   }
 });
+
 // 🚀 Запуск
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

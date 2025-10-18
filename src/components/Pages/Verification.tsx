@@ -11,7 +11,7 @@ const formatRemainingTime = (unlocksAt: string) => {
     const unlockDate = new Date(unlocksAt);
     const now = new Date();
     const diffMs = unlockDate.getTime() - now.getTime();
-    
+
     // Учитываем, что может быть меньше минуты, но округляем до целых минут
     if (diffMs <= 0) return "Сейчас";
 
@@ -21,7 +21,7 @@ const formatRemainingTime = (unlocksAt: string) => {
     // Убеждаемся, что не показываем "0 ч." если только это не 0 часов и 0 минут (что уже обработано выше)
     const hourPart = hours > 0 ? `${hours} ч. ` : '';
     // Если часов нет, но есть минуты (даже 1), показываем минуты.
-    const minutePart = `${minutes} мин.`; 
+    const minutePart = `${minutes} мин.`;
 
     return hourPart + minutePart;
 };
@@ -35,9 +35,9 @@ const Verification: React.FC = () => {
         localStorage.getItem("pendingEmail") ? "code" : "email"
     );
     const [loading, setLoading] = useState(false);
-    
+
     // 💡 СОСТОЯНИЕ ДЛЯ ЛИМИТА
-    const [attemptsRemaining, setAttemptsRemaining] = useState(MAX_ATTEMPTS); 
+    const [attemptsRemaining, setAttemptsRemaining] = useState(MAX_ATTEMPTS);
     const [unlocksAt, setUnlocksAt] = useState<string | null>(null);
 
     const navigate = useNavigate();
@@ -49,10 +49,10 @@ const Verification: React.FC = () => {
             const res = await fetch("http://localhost:5000/api/send-code", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: userEmail, checkOnly: true }), 
+                body: JSON.stringify({ email: userEmail, checkOnly: true }),
             });
             const data = await res.json();
-            
+
             if (!res.ok && data.action === "LIMIT_EXCEEDED") {
                 setError(data.message);
                 setAttemptsRemaining(0);
@@ -60,7 +60,7 @@ const Verification: React.FC = () => {
             } else if (data.attemptsRemaining !== undefined) {
                 // Если статус 200/OK, получаем попытки
                 setAttemptsRemaining(data.attemptsRemaining);
-                setUnlocksAt(null); 
+                setUnlocksAt(null);
             }
         } catch (err) {
             console.error("Не удалось проверить статус попыток:", err);
@@ -71,7 +71,7 @@ const Verification: React.FC = () => {
     // 💡 Эффект для автоматической проверки оставшихся попыток и таймера
     useEffect(() => {
         if (step === "code" && email) {
-            checkAttemptsStatus(email); 
+            checkAttemptsStatus(email);
         }
     }, [step, email]);
 
@@ -101,7 +101,7 @@ const Verification: React.FC = () => {
         setError("");
         setMessage("");
         setLoading(true);
-        
+
         // Быстрая проверка на фронтенде
         if (attemptsRemaining === 0 && unlocksAt) {
             setError(`Превышен лимит. Попробуйте через ${formatRemainingTime(unlocksAt || "")}.`);
@@ -116,12 +116,12 @@ const Verification: React.FC = () => {
                 body: JSON.stringify({ email }),
             });
             const data = await res.json();
-            
+
             if (res.ok) {
                 setMessage(data.message || "Код отправлен на почту.");
                 setStep("code");
                 localStorage.setItem("pendingEmail", email);
-                
+
                 if (data.attemptsRemaining !== undefined) {
                     setAttemptsRemaining(data.attemptsRemaining);
                     setUnlocksAt(null);
@@ -129,7 +129,7 @@ const Verification: React.FC = () => {
             } else {
                 if (data.action === "LIMIT_EXCEEDED") {
                     setError(data.message);
-                    setAttemptsRemaining(0); 
+                    setAttemptsRemaining(0);
                     setUnlocksAt(data.unlocksAt);
                 } else {
                     setError(data.message || "Ошибка отправки кода");
@@ -194,9 +194,16 @@ const Verification: React.FC = () => {
                     Подтверждение почты
                 </h2>
 
-                <p className="text-sm text-center mb-1 text-gray-500 dark:text-gray-400">
-                    Пожалуйста, подтвердите свою почту.
-                </p>
+                {step === "success" ? (
+                    <p className="text-sm text-center mb-1 text-green-600 font-medium">
+                        Почта подтверждена 🎉
+                    </p>
+                ) : (
+                    <p className="text-sm text-center mb-1 text-gray-500 dark:text-gray-400">
+                        Пожалуйста, подтвердите свою почту.
+                    </p>
+                )}
+
 
                 {step === "email" && (
                     <form onSubmit={handleSendCode} className="w-full flex flex-col gap-3">
@@ -235,7 +242,7 @@ const Verification: React.FC = () => {
                         >
                             {loading ? "Проверка..." : "Подтвердить"}
                         </button>
-                        
+
                         {/* 💡 БЛОК ОГРАНИЧЕНИЯ ПОПЫТОК */}
                         <div className="flex flex-col gap-2 mt-1">
                             {attemptsRemaining > 0 && (
@@ -245,11 +252,11 @@ const Verification: React.FC = () => {
                             )}
                             {unlocksAt && (
                                 <p className="text-xs text-left text-red-500 dark:text-red-400 font-bold flex items-center gap-1">
-                                    <Clock size={14} /> 
+                                    <Clock size={14} />
                                     Лимит исчерпан. Разблокировка через: {formatRemainingTime(unlocksAt)}
                                 </p>
                             )}
-                            
+
                             <button
                                 type="button"
                                 className="text-indigo-500 hover:text-indigo-600 underline text-sm flex items-center gap-1 disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed w-fit"
@@ -274,15 +281,16 @@ const Verification: React.FC = () => {
 
                 {/* Нижние кнопки */}
                 <div className={`flex gap-3 ${step === "success" ? "justify-center" : "justify-center"}`}>
-                    
-                    <button
-                        onClick={openGmail}
-                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-                    >
-                        <Mail size={18} />
-                        Gmail
-                    </button>
 
+                    {step !== "success" && (
+                        <button
+                            onClick={openGmail}
+                            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+                        >
+                            <Mail size={18} />
+                            Gmail
+                        </button>
+                    )}
                     {step === "success" && (
                         <button
                             onClick={() => navigate("/login")}
