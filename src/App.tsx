@@ -4,20 +4,20 @@ import Navbar from "./components/Pages/Shared/Navbar";
 import Admin from "./components/Pages/Admin";
 import Home from "./components/Pages/Home";
 import Contact from "./components/Pages/Contact";
-// import Footer from "./components/Pages/Shared/Footer";
 import Login from "./components/Pages/Shared/login";
 import Register from "./components/Pages/Shared/register";
 import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
 import AnimePage from "./components/Pages/AnimePage";
+import AnimeEpisode from "./components/Pages/AnimeEpisode";
 
 function App() {
   const location = useLocation();
-  const simpleHeaderPages = ["/login", "/Login", "/register"];
+  const simpleHeaderPages = ["/login", "/register"];
 
   return (
     <>
-      {/* Если страница логина или регистрации — показываем кнопку "← Home", иначе Navbar */}
+      {/* 🔹 Если страница логина или регистрации — показываем кнопку "← Home" */}
       {simpleHeaderPages.includes(location.pathname) ? (
         <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <Link to="/">
@@ -38,17 +38,23 @@ function App() {
         <Navbar />
       )}
 
-      {/* Основной контент */}
+      {/* 🔹 Основные маршруты */}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verification" element={<Verification />} />
-        <Route path="/anime/:slug" element={<AnimePage />} />
         <Route path="/login" element={<Login />} />
 
+        <Route
+          path="/anime/:slug/season/:seasonNumber/episode/:episodeNumber"
+          element={<AnimeEpisode />}
+        />
 
-        {/* 🔒 защищённая админка */}
+        {/* Страница аниме */}
+        <Route path="/anime/:slug" element={<AnimePage />} />
+
+        {/* 🔒 Защищённая админка */}
         <Route
           path="/admin"
           element={

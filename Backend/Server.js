@@ -171,6 +171,36 @@ app.get("/api/anime/:identifier", async (req, res) => {
   }
 });
 
+// 📺 Получить конкретный эпизод по slug, сезону и номеру серии
+app.get("/api/anime/:slug/season-:seasonNumber/episode-:episodeNumber", async (req, res) => {
+  try {
+    const { slug, seasonNumber, episodeNumber } = req.params;
+
+    // 1️⃣ Находим аниме по slug
+    const anime = await Anime.findOne({ slug });
+    if (!anime) return res.status(404).json({ message: "Аниме не найдено" });
+
+    // 2️⃣ Находим нужный сезон
+    const season = anime.seasons.find(
+      (s) => s.seasonNumber === Number(seasonNumber)
+    );
+    if (!season) return res.status(404).json({ message: "Сезон не найден" });
+
+    // 3️⃣ Находим нужный эпизод
+    const episode = season.episodes.find(
+      (e) => e.number === Number(episodeNumber)
+    );
+    if (!episode) return res.status(404).json({ message: "Эпизод не найден" });
+
+    // 4️⃣ Отправляем всё в ответ
+    res.json({ anime, season, episode });
+  } catch (err) {
+    console.error("Ошибка при получении эпизода:", err);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+
 
 // 🔹 Проверка, админ ли пользователь
 app.get("/api/check-admin", verifyAdmin, (req, res) => {

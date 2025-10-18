@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
 interface Episode {
   number: number;
@@ -66,23 +66,30 @@ function AnimePage() {
     return () => controller.abort();
   }, [slug]);
 
-  if (loading) return <div className="text-center mt-[400px] text-lg">
-    <div className="flex justify-center mt-[300px] flex-row gap-2">
-      <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce"></div>
-      <div
-        className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"
-      ></div>
-      <div
-        className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"
-      ></div>
-    </div>
-  </div>;
-  if (error) return <div className="text-center mt-[300px] [text-shadow:0.5px_0.5px_2px_black] text-red-500">{error}</div>;
-  if (!anime) return <div className="text-center mt-10   text-slate-500">Аниме не найдено</div>;
+  if (loading)
+    return (
+      <div className="text-center mt-[400px] text-lg">
+        <div className="flex justify-center mt-[300px] flex-row gap-2">
+          <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce"></div>
+          <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"></div>
+          <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"></div>
+        </div>
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="text-center mt-[300px] [text-shadow:0.5px_0.5px_2px_black] text-red-500">
+        {error}
+      </div>
+    );
+
+  if (!anime)
+    return <div className="text-center mt-10 text-slate-500">Аниме не найдено</div>;
 
   return (
     <div className="max-w-5xl mx-auto mt-[100px] p-6 text-white">
-      <div className="flex flex-col md:flex-row gap-6 bg-gray-800  p-4 shadow-lg">
+      <div className="flex flex-col md:flex-row gap-6 bg-gray-800 p-4 shadow-lg">
         <img
           src={anime.thumbnail}
           alt={anime.nameRu}
@@ -95,20 +102,20 @@ function AnimePage() {
           </h1>
           <p className="text-gray-300">{anime.description}</p>
           <p className="text-yellow-400 font-semibold">⭐ {anime.rating}</p>
+
           {anime.dates?.length > 0 && (
+            <p className="text-gray-400 text-sm">📅 {anime.dates.join(", ")}</p>
+          )}
+          {anime.genres?.length > 0 && (
             <p className="text-gray-400 text-sm">
-              📅 {anime.dates.join(", ")}
+              🎭 Жанры: {anime.genres.join(", ")}
             </p>
           )}
-
-          {anime.genres?.length > 0 && (
-            <p className="text-gray-400 text-sm">🎭 Жанры: {anime.genres.join(", ")}</p>
-          )}
-
           {anime.types?.length > 0 && (
-            <p className="text-gray-400 text-sm">🧩 Типы: {anime.types.join(", ")}</p>
+            <p className="text-gray-400 text-sm">
+              🧩 Типы: {anime.types.join(", ")}
+            </p>
           )}
-
         </div>
       </div>
 
@@ -132,23 +139,19 @@ function AnimePage() {
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-3">
               {season.episodes.map((ep) => (
-                <a
+                <Link
                   key={ep.number}
-                  href={ep.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  to={`/anime/${anime.slug}/season/${season.seasonNumber}/episode/${ep.number}`}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-center transition"
                 >
                   {ep.number} серия
-                </a>
+                </Link>
               ))}
             </div>
           )}
         </div>
       ))}
-
     </div>
-
   );
 }
 
