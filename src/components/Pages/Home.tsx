@@ -30,13 +30,23 @@ function Home() {
 
   if (loading)
     return (
-      <div className="flex justify-center items-center min-h-[60vh] text-xl">
-        Загрузка...
+      <div className="flex justify-center items-center min-h-[60vh] mt-[200px] text-xl">
+
+        <div className="flex flex-row gap-2">
+          <div className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce"></div>
+          <div
+            className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"
+          ></div>
+          <div
+            className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"
+          ></div>
+        </div>
+
       </div>
     );
 
   return (
-    <div className="max-w-[1000px] bg-slate-400 mt-56 mx-auto px-4 sm:px-8 py-10">
+    <div className="max-w-[1000px] bg-purple-950/40 mt-56 mx-auto px-4 sm:px-8 py-10">
       <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-8 text-center">
         📺 Популярное аниме
       </h1>
@@ -62,7 +72,7 @@ function Home() {
               </div>
 
 
-              <div className="-mt-[120px] w-52 bg-white dark:bg-slate-800  pt-10 pb-6 px-4 text-center shadow-md transition-all duration-300 group-hover:shadow-xl">
+              <div className="-mt-[120px] w-52 bg-purple-100 dark:bg-gray-800  pt-10 pb-6 px-4 text-center shadow-md transition-all duration-300 group-hover:shadow-xl">
                 <h2 className="text-lg mt-24 font-bold text-slate-800 dark:text-white truncate">
                   {anime.nameRu}
                 </h2>
@@ -102,7 +112,7 @@ function Home() {
                 </div>
 
               </div>
-              <div className="dark:bg-gray-800 bg-white w-52 h-5 adsolute  rounded-b-[100%]   ">
+              <div className="dark:bg-gray-800 bg-purple-100 w-52 h-5 adsolute  rounded-b-[100%]   ">
               </div>
             </div>
           ))}
