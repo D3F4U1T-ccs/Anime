@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
-// 💡 Импортируем иконку для красоты
 import { MailCheck } from "lucide-react";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Card, CardHeader, CardContent } from "../../ui/card";
+import { Separator } from "../../ui/separator";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
-  // 💡 НОВОЕ СОСТОЯНИЕ: для модального окна верификации
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -16,7 +18,7 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg("");
-    setShowVerificationModal(false); // Сбрасываем модальное окно
+    setShowVerificationModal(false);
 
     try {
       const res = await fetch("http://localhost:5000/api/login", {
@@ -29,17 +31,15 @@ function Login() {
 
       if (!res.ok) {
         if (data.action === "VERIFY_REQUIRED") {
-          // 💡 ИЗМЕНЕНИЕ: НЕ перенаправляем, а показываем модальное окно
           localStorage.setItem("pendingEmail", email);
           setShowVerificationModal(true);
-          setMsg(""); // Убираем сообщение об ошибке, так как будет модальное окно
+          setMsg("");
           return;
         }
 
         throw new Error(data.message);
       }
 
-      // Успешный вход
       login(data.user);
       localStorage.setItem("token", data.token);
       navigate("/");
@@ -48,20 +48,21 @@ function Login() {
     }
   };
 
-  // 💡 ФУНКЦИЯ ДЛЯ ПЕРЕНАПРАВЛЕНИЯ
   const redirectToVerification = () => {
-    setShowVerificationModal(false); // Закрыть модальное окно
-    navigate("/verification"); // Перейти на страницу
-  }
+    setShowVerificationModal(false);
+    navigate("/verification");
+  };
 
   return (
-    <div className="flex justify-center items-center min-h-[60vh]">
+    <div className="flex h-screen items-center justify-center px-4">
       {/* 💡 Модальное окно */}
       {showVerificationModal && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-700 p-8 rounded-lg shadow-2xl max-w-sm w-full text-center">
             <MailCheck size={48} className="text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-white">Требуется подтверждение!</h3>
+            <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-white">
+              Требуется подтверждение!
+            </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Ваш аккаунт не подтвержден. Пожалуйста, подтвердите свою почту.
             </p>
@@ -75,50 +76,71 @@ function Login() {
         </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-800 shadow-lg rounded-lg p-8 w-full max-w-sm flex flex-col gap-4"
-      >
-        {/* ... (остальные поля формы) ... */}
-        <h2 className="text-2xl font-bold text-center mb-2">Login</h2>
-        {msg && <div className="text-red-500 text-sm text-center">{msg}</div>}
+      <div className="rounded-2xl bg-gradient-to-tl from-white/85 via-black/15 to-white/85 p-[2px]">
+        <Card className="w-[400px] max-w-md rounded-2xl bg-neutral-400/30 dark:bg-neutral-950/90 shadow-2xl shadow-black/50 backdrop-blur-sm border-0">
+          <CardHeader className="text-center space-y-2">
+            <div className="flex justify-center">
+              <div className="h-12 w-12 flex items-center justify-center rounded-full bg-violet-600 text-white text-xl font-bold">
+                A
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-neutral-600 dark:text-white">
+              Login to AniWorld
+            </h1>
+            <p className="text-sm text-neutral-400">
+              Welcome back,{" "}
+              <span className="text-violet-600">continue</span> your anime journey ✨
+            </p>
+          </CardHeader>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="px-3 py-2 rounded border text-gray-700 border-slate-300 focus:ring-2 focus:ring-indigo-400"
-          required
-        />
+          <CardContent className="space-y-4">
+            {msg && <p className="text-red-500 text-sm text-center">{msg}</p>}
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="px-3 py-2 rounded border text-gray-700 border-slate-300 focus:ring-2 focus:ring-indigo-400"
-          required
-        />
+            <div className="flex items-center gap-2">
+              <Separator className="flex-1 bg-neutral-700" />
+              <span className="text-xs text-neutral-500">Введите данные</span>
+              <Separator className="flex-1 bg-neutral-700" />
+            </div>
 
-        <button
-          type="submit"
-          className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded transition-colors"
-        >
-          Login
-        </button>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
+                required
+              />
 
-        {/* Ссылка на регистрацию */}
-        <p className="text-sm text-center text-slate-600 dark:text-slate-300 mt-2">
-          Нет аккаунта?{" "}
-          <Link
-            to="/register"
-            className="text-indigo-500 hover:text-indigo-600 font-medium"
-          >
-            Зарегистрироваться
-          </Link>
-        </p>
-      </form>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
+                required
+              />
+
+              <Button
+                type="submit"
+                className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
+              >
+                Login
+              </Button>
+
+              <p className="text-sm text-center text-neutral-500">
+                Don’t have an account?{" "}
+                <Link
+                  to="/register"
+                  className="text-violet-500 hover:underline font-medium"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

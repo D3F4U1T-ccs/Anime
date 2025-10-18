@@ -1,7 +1,8 @@
-import { Link } from "react-router-dom";
-import { ModeToggle } from "@/components/Provider/mode-toggle";
+import { NavLink } from "react-router-dom";
+import { Tv, Music2, LogIn, MessageSquare, LogOut, Shield } from "lucide-react";
+import { ModeToggle } from "../../Provider/mode-toggle";
 import { useAuth } from "../../../context/AuthContext";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface User {
   name: string;
@@ -31,71 +32,109 @@ function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-md shadow-lg rounded-b-xl border-b border-slate-200 dark:border-slate-700 transition-all">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-8 h-8 bg-gradient-to-tr from-indigo-400 via-pink-400 to-yellow-300 rounded-full shadow-md"></span>
-          <h1 className="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight hover:text-indigo-500 transition-colors duration-300 cursor-pointer select-none">
-            Dior
+    <div
+      className="fixed top-0 w-full z-50 border-b border-neutral-800 dark:border-neutral-200
+        backdrop-blur-md bg-gradient-to-b from-black/60 to-white dark:from-white/20 dark:to-black
+        shadow-[0_2px_10px_rgba(0,0,0,0.2)] dark:shadow-[0_2px_10px_rgba(255,255,255,0.15)]
+        transform transition-transform duration-500 translate-y-0"
+    >
+      <div className="flex items-center justify-between px-10 py-3">
+        {/* 🌀 Логотип */}
+        <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
+          <h1 className="font-bold text-[22px] tracking-wide text-black dark:text-white drop-shadow-sm select-none">
+            AniWorld
           </h1>
         </div>
 
-        <div className="flex items-center gap-6 relative">
-          <Link to="/" className="text-slate-700 dark:text-slate-100 font-medium hover:text-indigo-500">
-            Home
-          </Link>
-          <Link to="/contact" className="text-slate-700 dark:text-slate-100 font-medium hover:text-indigo-500">
-            Contact
-          </Link>
+        {/* 🔗 Навигация */}
+        <div className="flex items-center gap-6">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
+              ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
+            }
+          >
+            <Tv className="w-4 h-4" /> Anime
+          </NavLink>
 
+          <NavLink
+            to="/Openings"
+            className={({ isActive }) =>
+              `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
+              ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
+            }
+          >
+            <Music2 className="w-4 h-4" /> Openings
+          </NavLink>
+
+          <NavLink
+            to="/Chat"
+            className={({ isActive }) =>
+              `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
+              ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
+            }
+          >
+            <MessageSquare className="w-4 h-4" /> Chat
+          </NavLink>
+
+          {/* 👤 Авторизация */}
           {!user ? (
-            <Link
-              to="/login"
-              className="text-white bg-indigo-500 hover:bg-indigo-600 font-semibold px-4 py-1 rounded-lg shadow"
+            <NavLink
+              to="/Login"
+              className={({ isActive }) =>
+                `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
+                ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
+              }
             >
-              Login
-            </Link>
+              <LogIn className="w-4 h-4" /> Login
+            </NavLink>
           ) : (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpen((prev) => !prev)}
-                className="text-slate-800 dark:text-white font-semibold hover:text-indigo-500"
+                className="flex items-center gap-2 text-[16px] font-semibold text-black dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition"
               >
                 {user.name}
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 border-b dark:border-slate-700">
+                <div
+                  className="absolute right-0 mt-2 w-52 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700
+                    shadow-lg overflow-hidden animate-fadeIn"
+                >
+                  <div className="px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-800">
                     {user.email}
                   </div>
 
-                  {/* 🟢 если админ — показываем пункт меню “Админ панель” */}
+                  {/* 🛡️ Админ-панель */}
                   {user.isAdmin && (
-                    <Link
+                    <NavLink
                       to="/admin"
-                      className="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-slate-700 font-medium transition"
                       onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-[15px] font-medium text-green-600 hover:bg-green-50 dark:hover:bg-neutral-800 transition"
                     >
-                      Админ панель
-                    </Link>
+                      <Shield className="w-4 h-4" /> Админ панель
+                    </NavLink>
                   )}
 
+                  {/* 🚪 Выход */}
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 font-medium transition"
+                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-[15px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-neutral-800 transition"
                   >
-                    Выйти
+                    <LogOut className="w-4 h-4" /> Выйти
                   </button>
                 </div>
               )}
             </div>
           )}
 
+          {/* 🌗 Переключатель темы */}
           <ModeToggle />
         </div>
       </div>
-    </nav>
+    </div>
   );
 }
 
