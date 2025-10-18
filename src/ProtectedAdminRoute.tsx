@@ -20,9 +20,21 @@ function ProtectedAdminRoute({ children }: { children: JSX.Element }) {
 
   if (isAllowed === null) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh] text-lg">
-        Проверка прав администратора...
+      <div className="">
+        <div className="flex justify-center items-center min-h-[60vh] text-lg">
+          Проверка прав администратора...
+        </div>
+          <div className="flex flex-row justify-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce"></div>
+            <div
+              className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"
+            ></div>
+            <div
+              className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"
+            ></div>
+          </div>
       </div>
+
     );
   }
 

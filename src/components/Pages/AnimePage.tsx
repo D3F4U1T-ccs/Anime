@@ -66,12 +66,22 @@ function AnimePage() {
     return () => controller.abort();
   }, [slug]);
 
-  if (loading) return <div className="text-center mt-10 text-lg">Загрузка...</div>;
-  if (error) return <div className="text-center mt-10 text-red-500">{error}</div>;
-  if (!anime) return <div className="text-center mt-10 text-slate-500">Аниме не найдено</div>;
+  if (loading) return <div className="text-center mt-[400px] text-lg">
+    <div className="flex justify-center mt-[300px] flex-row gap-2">
+      <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce"></div>
+      <div
+        className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"
+      ></div>
+      <div
+        className="w-3 h-3 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"
+      ></div>
+    </div>
+  </div>;
+  if (error) return <div className="text-center mt-[300px] [text-shadow:0.5px_0.5px_2px_black] text-red-500">{error}</div>;
+  if (!anime) return <div className="text-center mt-10   text-slate-500">Аниме не найдено</div>;
 
   return (
-    <div className="max-w-5xl mx-auto p-6 text-white">
+    <div className="max-w-5xl mx-auto mt-[100px] p-6 text-white">
       <div className="flex flex-col md:flex-row gap-6 bg-gray-800  p-4 shadow-lg">
         <img
           src={anime.thumbnail}

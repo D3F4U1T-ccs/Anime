@@ -220,7 +220,7 @@ function Admin() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto mt-10 p-6 bg-gray-700 text-white rounded-2xl shadow-lg">
+    <div className="max-w-5xl  mx-auto mt-[150px] p-6 bg-gray-700 text-white rounded-2xl shadow-lg">
       <h1 className="text-2xl font-bold mb-6 text-center">
         Админ панель — Добавить аниме
       </h1>
