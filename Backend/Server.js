@@ -11,6 +11,10 @@ const Anime = require("./models/Anime");
 const { sendCodeToEmail, checkVerificationCode } = require("./Verification");
 const verifyAdmin = require("./middleware/verifyAdmin");
 const User = require("./models/User");
+// 🎬 Прокси для видео (решает CORS и временные ссылки)
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const stream = require("stream");
+
 
 const app = express();
 app.use(express.json());
@@ -32,6 +36,40 @@ async function deleteUnverifiedUsers() {
   }
 }
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
+app.get("/proxy", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS");
+
+  const targetUrl = req.query.url;
+  if (!targetUrl) return res.status(400).send("❌ Не указана ссылка (url)");
+
+  try {
+    const response = await fetch(targetUrl, { headers: { Range: req.headers.range || "" } });
+
+    if (!response.ok) {
+      return res
+        .status(response.status)
+        .send(`Ошибка загрузки: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "video/mp4";
+    res.setHeader("Content-Type", contentType);
+
+    if (response.headers.get("content-length"))
+      res.setHeader("Content-Length", response.headers.get("content-length"));
+    if (response.headers.get("accept-ranges"))
+      res.setHeader("Accept-Ranges", response.headers.get("accept-ranges"));
+
+    if (response.status === 206) res.status(206);
+
+    response.body.pipe(res);
+  } catch (err) {
+    console.error("❌ Ошибка при проксировании видео:", err);
+    res.status(500).send("Ошибка при проксировании видео");
+  }
+});
+
 
 // 🔹 Подключение к MongoDB
 mongoose
