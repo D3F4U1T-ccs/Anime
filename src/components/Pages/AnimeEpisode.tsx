@@ -129,19 +129,66 @@ export default function AnimeEpisode() {
       <div className="w-full md:max-w-5xl md:px-4 px-0">
         <div className="bg-neutral-900/90 rounded-none md:rounded-2xl p-3 md:p-6 shadow-lg">
           {/* 🔹 Обложка и заголовок */}
-          <div className="flex flex-col items-center mb-6 text-center">
-            <img
-              src={anime.thumbnail}
-              alt={anime.nameRu}
-              className="w-[160px] h-[160px] rounded-full object-cover shadow-md mb-3"
-            />
-            <h1 className="text-2xl md:text-3xl font-bold text-white">
-              {anime.nameRu}
-            </h1>
+          {/* ---- Новый хедер: обложка слева + центрированный заголовок ---- */}
+          <div className="w-full bg-neutral-800/60 border border-neutral-700 rounded-md p-4 flex items-center gap-4">
+            {/* Левый блок — круглая обложка */}
+            <div className="flex-shrink-0 relative">
+              <img
+                src={anime.thumbnail}
+                alt={anime.nameRu}
+                className="w-[96px] h-[96px] md:w-[140px] md:h-[140px] rounded-full object-cover shadow-lg border-2 border-neutral-700"
+              />
+              {/* Если нужен небольшой тег (например возраст/ранг) — добавь тут, иначе удаляй */}
+              {/* <div className="absolute -top-2 -left-2 bg-red-600 text-xs text-white px-2 py-0.5 rounded">18+</div> */}
+            </div>
+
+            {/* Центр — заголовок и инфо */}
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-lg md:text-2xl font-semibold text-white">
+                {anime.nameRu}
+              </h1>
+              <p className="text-sm md:text-base text-gray-300 mt-1">
+                {/* Показываем номер и название эпизода, если есть */}
+                {episode?.title ? `Серия ${episode.number} — ${episode.title}` : `Серия ${episode?.number}`}
+              </p>
+
+              {/* Метаданные / теги (жанр, рейтинг, сезон) */}
+              <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 mt-3">
+                {/* пример тега */}
+                <span className="bg-neutral-700/60 text-xs text-gray-200 px-3 py-1 rounded-md shadow-sm">
+                  Сезон {currentSeason?.seasonNumber ?? 1}
+                </span>
+
+
+              </div>
+            </div>
+
+            {/* Правый блок — кнопки навигации (на небольших экранах можно скрыть/перенести) */}
+            <div className="flex flex-col items-end gap-2">
+              <div className="hidden md:flex gap-2">
+                <button
+                  onClick={() => prevEpisode && navigate(prevEpisode)}
+                  disabled={!prevEpisode}
+                  className={`px-3 py-1 rounded-md text-sm font-medium ${prevEpisode ? "bg-violet-600 hover:bg-violet-700 text-white" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
+                >
+                  ◀ Пред.
+                </button>
+
+                <button
+                  onClick={() => nextEpisode && navigate(nextEpisode)}
+                  disabled={!nextEpisode}
+                  className={`px-3 py-1 rounded-md text-sm font-medium ${nextEpisode ? "bg-violet-600 hover:bg-violet-700 text-white" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
+                >
+                  След. ▶
+                </button>
+              </div>
+
+              {/* мобильный маленький лейбл */}
+              <div className="md:hidden text-xs text-gray-400">Сезон {currentSeason?.seasonNumber}</div>
+            </div>
           </div>
-          <h2 className="text-xl text-center text-white font-semibold mt-3">
-            {/* {episode?.title || `Серия ${episode?.number}`} */}
-          </h2>
+          {/* ---- /Новый хедер ---- */}
+
 
           {/* 🎬 Видео */}
           <div className="mt-4 w-full">
@@ -174,8 +221,8 @@ export default function AnimeEpisode() {
               onClick={() => prevEpisode && navigate(prevEpisode)}
               disabled={!prevEpisode}
               className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${prevEpisode
-                  ? "bg-violet-600 hover:bg-violet-700"
-                  : "bg-gray-700 cursor-not-allowed"
+                ? "bg-violet-600 hover:bg-violet-700"
+                : "bg-gray-700 cursor-not-allowed"
                 }`}
             >
               ◀ Предыдущая
@@ -192,8 +239,8 @@ export default function AnimeEpisode() {
               onClick={() => nextEpisode && navigate(nextEpisode)}
               disabled={!nextEpisode}
               className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${nextEpisode
-                  ? "bg-violet-600 hover:bg-violet-700"
-                  : "bg-gray-700 cursor-not-allowed"
+                ? "bg-violet-600 hover:bg-violet-700"
+                : "bg-gray-700 cursor-not-allowed"
                 }`}
             >
               Следующая ▶

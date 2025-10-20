@@ -10,6 +10,8 @@ import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
 import AnimePage from "./components/Pages/AnimePage";
 import AnimeEpisode from "./components/Pages/AnimeEpisode";
+import Openinings from "./components/Pages/Openinings";
+import About from "./components/Pages/About";
 
 function App() {
   const location = useLocation();
@@ -43,8 +45,10 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/Openings" element={<Openinings />} />
         <Route path="/verification" element={<Verification />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/About" element={<About />} />
 
         <Route
           path="/anime/:slug/season/:seasonNumber/episode/:episodeNumber"

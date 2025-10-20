@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Tv, Music2, LogIn, MessageSquare, LogOut, Shield } from "lucide-react";
+import { Tv, Music2, LogIn, LogOut, Shield } from "lucide-react";
 import { ModeToggle } from "../../Provider/mode-toggle";
 import { useAuth } from "../../../context/AuthContext";
 import { useState, useRef, useEffect } from "react";
@@ -40,11 +40,16 @@ function Navbar() {
     >
       <div className="flex items-center justify-between px-10 py-3">
         {/* 🌀 Логотип */}
-        <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
-          <h1 className="font-bold text-[22px] tracking-wide text-black dark:text-white drop-shadow-sm select-none">
-            AniWorld
-          </h1>
-        </div>
+
+        <NavLink
+          to="/"
+          className="flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300"
+        > <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
+            <h1 className="font-bold text-[22px] tracking-wide text-black dark:text-white drop-shadow-sm select-none">
+              AniWorld
+            </h1>
+          </div>
+        </NavLink>
 
         {/* 🔗 Навигация */}
         <div className="flex items-center gap-6">
@@ -55,7 +60,7 @@ function Navbar() {
               ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
             }
           >
-            <Tv className="w-4 h-4" /> Anime
+            <Tv className="w-4 h-4" /> Аниме
           </NavLink>
 
           <NavLink
@@ -65,18 +70,18 @@ function Navbar() {
               ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
             }
           >
-            <Music2 className="w-4 h-4" /> Openings
+            <Music2 className="w-4 h-4" /> Опенинги
           </NavLink>
-
           <NavLink
-            to="/Chat"
+            to="/About"
             className={({ isActive }) =>
               `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
               ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
             }
           >
-            <MessageSquare className="w-4 h-4" /> Chat
+            Обо мне
           </NavLink>
+
 
           {/* 👤 Авторизация */}
           {!user ? (
@@ -87,7 +92,7 @@ function Navbar() {
                 ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
               }
             >
-              <LogIn className="w-4 h-4" /> Login
+              <LogIn className="w-4 h-4" /> Логин
             </NavLink>
           ) : (
             <div className="relative" ref={dropdownRef}>

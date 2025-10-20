@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+// VideoPlayer.tsx
+import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import {
   Play,
@@ -31,7 +32,6 @@ function convertTimeToSeconds(timeStr?: string): number | null {
   if (!timeStr) return null;
   const parts = timeStr.split(":").map(Number);
   if (parts.some(isNaN)) return null;
-
   if (parts.length === 2) {
     const [minutes, seconds] = parts;
     return minutes * 60 + seconds;
@@ -55,7 +55,9 @@ export default function VideoPlayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const volumeSliderRef = useRef<HTMLInputElement | null>(null);
   const progressRef = useRef<HTMLInputElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
+  // UI state
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
@@ -76,35 +78,43 @@ export default function VideoPlayer({
     "auto"
   );
 
+  // Skip UI state (controls visibility)
   const [showOpeningSkip, setShowOpeningSkip] = useState(false);
   const [showEndingSkip, setShowEndingSkip] = useState(false);
   const [hasSkippedOpening, setHasSkippedOpening] = useState(false);
   const [hasSkippedEnding, setHasSkippedEnding] = useState(false);
 
   const [progressTooltipTime, setProgressTooltipTime] = useState("");
+  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
 
+  // helpers / refs
   const hideTimeout = useRef<number | null>(null);
   const tooltipTimeout = useRef<number | null>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const pendingSeekRef = useRef<number | null>(null); // если metadata ещё не пришёл
 
+  // seconds
   const openingStartSec = convertTimeToSeconds(openingStart);
   const openingEndSec = convertTimeToSeconds(openingEnd);
   const endingStartSec = convertTimeToSeconds(endingStart);
   const endingEndSec = convertTimeToSeconds(endingEnd);
 
-  const hasOpening = openingStartSec !== null && openingEndSec !== null && openingStartSec < openingEndSec;
-  const hasEnding = endingStartSec !== null && endingEndSec !== null && endingStartSec < endingEndSec;
+  const hasOpening =
+    openingStartSec !== null &&
+    openingEndSec !== null &&
+    openingStartSec < openingEndSec;
+  const hasEnding =
+    endingStartSec !== null &&
+    endingEndSec !== null &&
+    endingStartSec < endingEndSec;
 
   // -----------------------
-  // HLS init + qualities
+  // Init HLS (don't re-create on skip state changes)
   // -----------------------
   useEffect(() => {
     if (!episodeUrl || !videoRef.current) return;
     const video = videoRef.current;
-    const proxiedUrl = `http://localhost:5000/proxy?url=${encodeURIComponent(
-      episodeUrl
-    )}`;
 
+    // destroy previous hls if different source
     if (hlsRef.current) {
       try {
         hlsRef.current.destroy();
@@ -112,12 +122,15 @@ export default function VideoPlayer({
       hlsRef.current = null;
     }
 
+    // proxied URL (по вашему серверу-прокси)
+    const proxiedUrl = `http://localhost:5000/proxy?url=${encodeURIComponent(
+      episodeUrl
+    )}`;
+
     const hls = new Hls({
-      backBufferLength: Infinity, // Фикс: держать весь буфер для seek без сброса
+      backBufferLength: Infinity,
     });
     hlsRef.current = hls;
-    hls.loadSource(proxiedUrl);
-    hls.attachMedia(video);
 
     const onManifest = (_event: unknown, data: any) => {
       try {
@@ -133,7 +146,16 @@ export default function VideoPlayer({
       }
     };
 
-    hls.on(Hls.Events.MANIFEST_PARSED, onManifest);
+    const onError = (_evt: any, data: any) => {
+      try {
+        if (data?.fatal) {
+          console.warn("HLS fatal error, trying recoverMediaError...", data);
+          hls.recoverMediaError();
+        }
+      } catch (err) {
+        console.error("HLS error handler failed:", err);
+      }
+    };
 
     const updateProgress = () => {
       if (!video.duration || !isFinite(video.duration)) return;
@@ -142,63 +164,91 @@ export default function VideoPlayer({
       setCurrentTime(video.currentTime);
 
       if (hasOpening && !hasSkippedOpening) {
-        if (video.currentTime >= openingStartSec! && video.currentTime < openingEndSec!) {
+        if (
+          video.currentTime >= openingStartSec! &&
+          video.currentTime < openingEndSec!
+        ) {
           setShowOpeningSkip(true);
         } else if (video.currentTime >= openingEndSec!) {
           setShowOpeningSkip(false);
           setHasSkippedOpening(true);
+        } else {
+          setShowOpeningSkip(false);
         }
+      } else {
+        setShowOpeningSkip(false);
       }
 
       if (hasEnding && !hasSkippedEnding) {
-        if (video.currentTime >= endingStartSec! && video.currentTime < endingEndSec!) {
+        if (
+          video.currentTime >= endingStartSec! &&
+          video.currentTime < endingEndSec!
+        ) {
           setShowEndingSkip(true);
         } else if (video.currentTime >= endingEndSec!) {
           setShowEndingSkip(false);
           setHasSkippedEnding(true);
+        } else {
+          setShowEndingSkip(false);
         }
+      } else {
+        setShowEndingSkip(false);
       }
     };
 
+    const onLoadedMeta = () => {
+      if (pendingSeekRef.current !== null) {
+        const t = pendingSeekRef.current;
+        pendingSeekRef.current = null;
+        if (!isNaN(video.duration) && isFinite(video.duration)) {
+          video.currentTime = Math.min(video.duration, Math.max(0, t));
+        }
+      }
+      updateProgress();
+    };
+
+    hls.on(Hls.Events.MANIFEST_PARSED, onManifest);
+    hls.on(Hls.Events.ERROR, onError);
+
+    hls.attachMedia(video);
+    hls.loadSource(proxiedUrl);
+
     video.addEventListener("timeupdate", updateProgress);
-    video.addEventListener("loadedmetadata", updateProgress);
+    video.addEventListener("loadedmetadata", onLoadedMeta);
 
     return () => {
       try {
         hls.off(Hls.Events.MANIFEST_PARSED, onManifest);
+        hls.off(Hls.Events.ERROR, onError);
         hls.destroy();
       } catch {}
       video.removeEventListener("timeupdate", updateProgress);
-      video.removeEventListener("loadedmetadata", updateProgress);
+      video.removeEventListener("loadedmetadata", onLoadedMeta);
+      if (hlsRef.current === hls) hlsRef.current = null;
     };
-  }, [episodeUrl, hasOpening, hasEnding, hasSkippedOpening, hasSkippedEnding, openingStartSec, openingEndSec, endingStartSec, endingEndSec]);
+  }, [episodeUrl, openingStartSec, openingEndSec, endingStartSec, endingEndSec]);
 
   // -----------------------
-  // Listener для seeked event (фикс паузы после seek)
-  // -----------------------
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleSeeked = () => {
-      if (isPlaying) {
-        video.play().catch(console.error);
-      }
-    };
-
-    video.addEventListener("seeked", handleSeeked);
-
-    return () => {
-      video.removeEventListener("seeked", handleSeeked);
-    };
-  }, [isPlaying]);
-
-  // -----------------------
-  // apply playbackRate
+  // ensure playbackRate applied
   // -----------------------
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
+
+  // -----------------------
+  // keep playing after seek if was playing
+  // -----------------------
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const handleSeeked = () => {
+      if (isPlaying) {
+        video.play().catch(() => {});
+      }
+    };
+    video.addEventListener("seeked", handleSeeked);
+    return () => video.removeEventListener("seeked", handleSeeked);
+  }, [isPlaying]);
 
   // -----------------------
   // play/pause
@@ -207,7 +257,7 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play();
+      video.play().catch(() => {});
       setIsPlaying(true);
     } else {
       video.pause();
@@ -221,19 +271,16 @@ export default function VideoPlayer({
   const setVideoVolume = (v: number, showTip = true) => {
     const newVol = Math.min(2, Math.max(0, +v));
     setVolume(newVol);
-
     if (showTip) {
       setShowVolumeTooltip(true);
       if (tooltipTimeout.current) window.clearTimeout(tooltipTimeout.current);
       tooltipTimeout.current = window.setTimeout(() => setShowVolumeTooltip(false), 800);
     }
-
     if (videoRef.current) {
       videoRef.current.volume = Math.min(1, newVol);
       videoRef.current.muted = newVol === 0;
       setIsMuted(newVol === 0);
     }
-
     if (volumeSliderRef.current && containerRef.current) {
       const s = volumeSliderRef.current;
       const rect = s.getBoundingClientRect();
@@ -253,32 +300,133 @@ export default function VideoPlayer({
   };
 
   // -----------------------
-  // seek
+  // simple seek helpers
   // -----------------------
-  const seekBy = (seconds: number) => {
-    if (!videoRef.current || !isFinite(videoRef.current.duration)) return;
+  const seekTo = (seconds: number) => {
     const video = videoRef.current;
+    if (!video) return;
+    if (isNaN(video.duration) || !isFinite(video.duration)) {
+      pendingSeekRef.current = seconds;
+      try {
+        hlsRef.current?.startLoad();
+      } catch {}
+      return;
+    }
+    video.currentTime = Math.min(video.duration, Math.max(0, seconds));
+  };
+
+  const seekBy = (seconds: number) => {
+    const video = videoRef.current;
+    if (!video || isNaN(video.duration) || !isFinite(video.duration)) return;
     video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + seconds));
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!videoRef.current) return;
     const newTime = (parseFloat(e.target.value) / 100) * duration;
-    videoRef.current.currentTime = newTime;
+    seekTo(newTime);
     setProgress(parseFloat(e.target.value));
+    // update tooltip text/pos when user uses keyboard or clicks (onChange)
+    if (progressRef.current) {
+      const rect = progressRef.current.getBoundingClientRect();
+      // compute left relative to progress element
+      const left = (parseFloat(e.target.value) / 100) * rect.width;
+      setProgressTooltipLeft(left);
+      setProgressTooltipTime(`${formatTime(newTime)} / ${formatTime(duration)}`);
+      setShowProgressTooltip(true);
+    }
   };
 
   // -----------------------
-  // fullscreen
+  // Progress tooltip helpers (drag + hover)
   // -----------------------
-  const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      await containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
+  const updateProgressTooltipFromClientX = (clientX: number) => {
+    if (!progressRef.current || !containerRef.current) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    // x inside progress element
+    let x = clientX - rect.left;
+    x = Math.max(0, Math.min(rect.width, x));
+    const hoverProgress = (x / rect.width) * 100;
+    const hoverTime = duration > 0 ? (hoverProgress / 100) * duration : 0;
+    // left relative to container (we want tooltip positioned above the progress)
+    const leftRelativeToContainer = x + rect.left - containerRect.left;
+    setProgressTooltipLeft(leftRelativeToContainer);
+    setProgressTooltipTime(`${formatTime(hoverTime)} / ${formatTime(duration)}`);
+    setShowProgressTooltip(true);
+  };
+
+  const handlePointerDownOnProgress = (e: React.PointerEvent<HTMLInputElement>) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setIsDraggingProgress(true);
+    updateProgressTooltipFromClientX(e.clientX);
+
+    // ensure we catch pointerup even if it happens outside input
+    const onWindowPointerUp = (_ev: PointerEvent) => {
+      setIsDraggingProgress(false);
+      // hide tooltip shortly after finishing drag
+      setTimeout(() => setShowProgressTooltip(false), 300);
+      window.removeEventListener("pointerup", onWindowPointerUp);
+    };
+    window.addEventListener("pointerup", onWindowPointerUp);
+  };
+
+  const handlePointerMoveOnProgress = (e: React.PointerEvent<HTMLInputElement>) => {
+    // always update tooltip position/time while moving
+    updateProgressTooltipFromClientX(e.clientX);
+  };
+
+  const handlePointerLeaveProgress = () => {
+    // hide only when not dragging
+    if (!isDraggingProgress) setShowProgressTooltip(false);
+  };
+
+  // -----------------------
+  // skip handlers
+  // -----------------------
+  const handleSkipOpening = () => {
+    const video = videoRef.current;
+    if (!video || openingEndSec === null) return;
+    const wasPlaying = !video.paused;
+    seekTo(openingEndSec);
+    if (wasPlaying) {
+      video.play().catch(() => {});
+    }
+    setShowOpeningSkip(false);
+    setHasSkippedOpening(true);
+  };
+
+  const handleSkipEnding = () => {
+    const video = videoRef.current;
+    if (hasNextEpisode) {
+      onSkipEnding();
+      return;
+    }
+    if (!video || endingEndSec === null) return;
+    const wasPlaying = !video.paused;
+    seekTo(endingEndSec);
+    if (wasPlaying) {
+      video.play().catch(() => {});
+    }
+    setShowEndingSkip(false);
+    setHasSkippedEnding(true);
+  };
+
+  // -----------------------
+  // quality switching
+  // -----------------------
+  const changeQuality = (height: number | "auto") => {
+    const hls = hlsRef.current;
+    if (!hls) return;
+    if (height === "auto") {
+      hls.currentLevel = -1;
+      setCurrentQuality("auto");
+      return;
+    }
+    const idx = hls.levels.findIndex((l: any) => l.height === height);
+    if (idx >= 0) {
+      hls.currentLevel = idx;
+      setCurrentQuality(height);
     }
   };
 
@@ -288,13 +436,10 @@ export default function VideoPlayer({
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
-
       if (["ArrowUp", "ArrowDown"].includes(e.key)) e.preventDefault();
-
       let key = e.key.toLowerCase();
       if (key === "а") key = "f";
       if (key === "ь") key = "m";
-
       switch (key) {
         case "arrowright":
           seekBy(10);
@@ -323,13 +468,12 @@ export default function VideoPlayer({
           break;
       }
     };
-
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [volume, isMuted]);
+  }, [volume, isMuted, isPlaying]);
 
   // -----------------------
-  // hide controls
+  // hide controls timer
   // -----------------------
   useEffect(() => {
     const resetTimer = () => {
@@ -339,15 +483,11 @@ export default function VideoPlayer({
         setShowControls(false);
       }, isFullscreen ? 2000 : 1500);
     };
-
     const container = containerRef.current;
     if (!container) return;
-
     container.addEventListener("mousemove", resetTimer);
     container.addEventListener("touchstart", resetTimer);
-
     resetTimer();
-
     return () => {
       container.removeEventListener("mousemove", resetTimer);
       container.removeEventListener("touchstart", resetTimer);
@@ -356,7 +496,7 @@ export default function VideoPlayer({
   }, [isFullscreen]);
 
   // -----------------------
-  // double click
+  // double click (seek small)
   // -----------------------
   const handleDoubleClick = (e: React.MouseEvent<HTMLVideoElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -372,81 +512,17 @@ export default function VideoPlayer({
     return <Volume2 size={22} />;
   };
 
-  const changeQuality = (height: number | "auto") => {
-    const hls = hlsRef.current;
-    if (!hls) return;
-    if (height === "auto") {
-      hls.currentLevel = -1;
-      setCurrentQuality("auto");
-      return;
-    }
-    const idx = hls.levels.findIndex((l: any) => l.height === height);
-    if (idx >= 0) {
-      hls.currentLevel = idx;
-      setCurrentQuality(height);
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      await containerRef.current.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
     }
   };
 
-  // -----------------------
-  // Handlers для skip кнопок (удалил mediaSeeking)
-  // -----------------------
-  const handleSkipOpening = () => {
-    const video = videoRef.current;
-    const hls = hlsRef.current;
-    if (video && openingEndSec !== null) {
-      const wasPlaying = !video.paused;
-      video.currentTime = openingEndSec;
-      if (hls) {
-        hls.startLoad();
-      }
-      if (wasPlaying) {
-        video.play().catch((err) => console.error("Play after seek failed:", err));
-      }
-      setShowOpeningSkip(false);
-      setHasSkippedOpening(true);
-    }
-  };
-
-  const handleSkipEnding = () => {
-    const video = videoRef.current;
-    const hls = hlsRef.current;
-    if (hasNextEpisode) {
-      onSkipEnding();
-    } else if (video && endingEndSec !== null) {
-      const wasPlaying = !video.paused;
-      video.currentTime = endingEndSec;
-      if (hls) {
-        hls.startLoad();
-      }
-      if (wasPlaying) {
-        video.play().catch((err) => console.error("Play after seek failed:", err));
-      }
-      setShowEndingSkip(false);
-      setHasSkippedEnding(true);
-    }
-  };
-
-  // -----------------------
-  // Tooltip для прогресс-бара
-  // -----------------------
-  const handleProgressHover = (e: React.MouseEvent<HTMLInputElement>) => {
-    if (!progressRef.current || duration === 0) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const hoverProgress = (x / rect.width) * 100;
-    const hoverTime = (hoverProgress / 100) * duration;
-    setProgressTooltipTime(`${formatTime(hoverTime)} / ${formatTime(duration)}`);
-    setProgressTooltipLeft(x);
-    setShowProgressTooltip(true);
-  };
-
-  const handleProgressLeave = () => {
-    setShowProgressTooltip(false);
-  };
-
-  // -----------------------
-  // render
-  // -----------------------
   return (
     <div
       ref={containerRef}
@@ -463,7 +539,6 @@ export default function VideoPlayer({
         onPause={() => setIsPlaying(false)}
       />
 
-      {/* Volume tooltip */}
       {showVolumeTooltip && volumeTooltipLeft !== null && (
         <div
           style={{ left: volumeTooltipLeft }}
@@ -473,17 +548,16 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Progress tooltip */}
+      {/* Progress tooltip (показывается над прогрессом) */}
       {showProgressTooltip && progressTooltipLeft !== null && (
         <div
           style={{ left: progressTooltipLeft }}
-          className="absolute top-[-32px] transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none z-50"
+          className="absolute bottom-[85px] transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none z-50"
         >
           {progressTooltipTime}
         </div>
       )}
 
-      {/* Кнопка пропуска опенинга (подняли) */}
       {showOpeningSkip && (
         <button
           onClick={handleSkipOpening}
@@ -493,7 +567,6 @@ export default function VideoPlayer({
         </button>
       )}
 
-      {/* Кнопка пропуска эндинга (подняли) */}
       {showEndingSkip && (
         <button
           onClick={handleSkipEnding}
@@ -503,7 +576,6 @@ export default function VideoPlayer({
         </button>
       )}
 
-      {/* Controls */}
       <div
         className={`absolute bottom-0 left-0 w-full px-4 pb-3 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
@@ -517,8 +589,21 @@ export default function VideoPlayer({
             value={progress}
             step="0.1"
             onChange={handleSeek}
-            onMouseMove={handleProgressHover}
-            onMouseLeave={handleProgressLeave}
+            onPointerDown={handlePointerDownOnProgress}
+            onPointerMove={handlePointerMoveOnProgress}
+            onPointerUp={() => {
+              // hide tooltip only if not hovering
+              setTimeout(() => {
+                if (!isDraggingProgress) setShowProgressTooltip(false);
+              }, 300);
+            }}
+            onMouseMove={(e) => {
+              // hover without dragging
+              if (!isDraggingProgress) {
+                updateProgressTooltipFromClientX(e.clientX);
+              }
+            }}
+            onMouseLeave={handlePointerLeaveProgress}
             className="w-full accent-white cursor-pointer drop-shadow-[0_0_30px_rgba(255,255,255,0.6)]"
           />
         </div>
@@ -546,7 +631,6 @@ export default function VideoPlayer({
           </div>
 
           <div className="flex items-center gap-3 relative">
-            {/* Дисплей времени */}
             <span className="text-sm text-gray-300">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
