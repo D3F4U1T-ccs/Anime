@@ -36,40 +36,40 @@ async function deleteUnverifiedUsers() {
   }
 }
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
-app.get("/proxy", async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS");
 
+app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send("❌ Не указана ссылка (url)");
 
   try {
-    const response = await fetch(targetUrl, { headers: { Range: req.headers.range || "" } });
+    console.log("🎥 Проксирую видео:", targetUrl);
+
+    const response = await fetch(targetUrl, {
+      headers: { Range: req.headers.range || "" },
+    });
 
     if (!response.ok) {
-      return res
-        .status(response.status)
-        .send(`Ошибка загрузки: ${response.statusText}`);
+      return res.status(response.status).send(`Ошибка загрузки: ${response.statusText}`);
     }
 
-    const contentType = response.headers.get("content-type") || "video/mp4";
-    res.setHeader("Content-Type", contentType);
-
+    // Переносим базовые заголовки, чтобы работало перематывание
+    res.setHeader("Content-Type", response.headers.get("content-type") || "video/mp4");
     if (response.headers.get("content-length"))
       res.setHeader("Content-Length", response.headers.get("content-length"));
     if (response.headers.get("accept-ranges"))
       res.setHeader("Accept-Ranges", response.headers.get("accept-ranges"));
+    if (response.status === 206)
+      res.status(206); // Partial content (для Range-запросов)
 
-    if (response.status === 206) res.status(206);
-
-    response.body.pipe(res);
+    // Потоковая передача (pipe)
+    const passThrough = new stream.PassThrough();
+    response.body.pipe(passThrough);
+    passThrough.pipe(res);
   } catch (err) {
-    console.error("❌ Ошибка при проксировании видео:", err);
+    console.error("Ошибка при проксировании видео:", err);
     res.status(500).send("Ошибка при проксировании видео");
   }
 });
-
 
 // 🔹 Подключение к MongoDB
 mongoose
@@ -95,18 +95,22 @@ const normalizeSlug = (text) => {
 // 🔹 Добавление аниме (только админ)
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   try {
+    console.log("📩 Получено тело запроса:", JSON.stringify(req.body, null, 2));
     const {
       nameRu,
       nameEn,
       slug: providedSlug,
-      date,
+      dates,
       rating,
       description,
       thumbnail,
       genres,
       types,
       seasons,
+
+
     } = req.body;
+
 
     if (!nameRu || !nameEn)
       return res.status(400).json({ message: "Поля nameRu и nameEn обязательны" });
@@ -129,21 +133,28 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
 
     const formattedSeasons = Array.isArray(seasons)
       ? seasons.map((season, i) => ({
-        seasonNumber: Number(season.seasonNumber) || Number(season.number) || i + 1,
+        seasonNumber: Number(season.seasonNumber) || i + 1,
         episodes: Array.isArray(season.episodes)
           ? season.episodes.map((ep, j) => ({
             number: Number(ep.number) || j + 1,
             url: ep.url?.trim() || "",
+            title: ep.title?.trim() || "",
+            openingStart: ep.openingStart?.trim() || "",
+            openingEnd: ep.openingEnd?.trim() || "",
+            endingStart: ep.endingStart?.trim() || "",
+            endingEnd: ep.endingEnd?.trim() || "",
           }))
           : [],
       }))
       : [];
 
+
+
     const newAnime = new Anime({
       nameRu: nameRu.trim(),
       nameEn: nameEn.trim(),
       slug: finalSlug,
-      date: date || "",
+      dates: Array.isArray(dates) ? dates.filter(Boolean) : [],
       rating: Number(rating) || 0,
       description: description || "",
       thumbnail: thumbnail || "",
@@ -151,6 +162,7 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       types: safeTypes,
       seasons: formattedSeasons,
     });
+
 
 
     await newAnime.save();

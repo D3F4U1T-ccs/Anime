@@ -4,6 +4,11 @@ import { useNavigate } from "react-router-dom";
 interface Episode {
   number: number;
   url: string;
+  title?: string;
+  openingStart?: string;
+  openingEnd?: string;
+  endingStart?: string;
+  endingEnd?: string;
 }
 
 interface Season {
@@ -128,27 +133,40 @@ function Admin() {
   };
 
   const deleteSeason = (index: number) => {
-    const updated = anime.seasons.filter((_, i) => i !== index);
-    updated.forEach((s, i) => (s.seasonNumber = i + 1));
-    setAnime({ ...anime, seasons: updated });
+    setAnime(prev => {
+      const newSeasons = prev.seasons.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        seasons: newSeasons.map((s, i) => ({ ...s, seasonNumber: i + 1 })),
+      };
+    });
   };
 
   // ➕ Серии
   const addEpisode = (sIdx: number) => {
-    const updated = [...anime.seasons];
-    updated[sIdx].episodes.push({
-      number: updated[sIdx].episodes.length + 1,
-      url: "",
+    setAnime(prev => {
+      const newSeasons = [...prev.seasons];
+      const newEpisodes = [...newSeasons[sIdx].episodes];
+      newEpisodes.push({
+        number: newEpisodes.length + 1,
+        url: "",
+      });
+      newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+      return { ...prev, seasons: newSeasons };
     });
-    setAnime({ ...anime, seasons: updated });
   };
 
   const deleteEpisode = (sIdx: number, eIdx: number) => {
-    const updated = [...anime.seasons];
-    updated[sIdx].episodes.splice(eIdx, 1);
-    updated[sIdx].episodes.forEach((ep, i) => (ep.number = i + 1));
-    setAnime({ ...anime, seasons: updated });
+    setAnime(prev => {
+      const newSeasons = [...prev.seasons];
+      const newEpisodes = [...newSeasons[sIdx].episodes];
+      newEpisodes.splice(eIdx, 1);
+      const updatedEpisodes = newEpisodes.map((ep, i) => ({ ...ep, number: i + 1 }));
+      newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: updatedEpisodes };
+      return { ...prev, seasons: newSeasons };
+    });
   };
+
   // Добавить новую дату
   const addDate = () => {
     setAnime(prev => ({ ...prev, dates: [...prev.dates, ""] }));
@@ -156,22 +174,29 @@ function Admin() {
 
   // Удалить конкретную дату
   const deleteDate = (index: number) => {
-    const updated = anime.dates.filter((_, i) => i !== index);
-    setAnime({ ...anime, dates: updated });
+    setAnime(prev => {
+      const updated = prev.dates.filter((_, i) => i !== index);
+      return { ...prev, dates: updated };
+    });
   };
 
   // Изменить значение даты
   const handleDateChange = (index: number, value: string) => {
-    const updated = [...anime.dates];
-    updated[index] = value;
-    setAnime({ ...anime, dates: updated });
+    setAnime(prev => {
+      const updated = [...prev.dates];
+      updated[index] = value;
+      return { ...prev, dates: updated };
+    });
   };
 
-
   const handleEpisodeChange = (sIdx: number, eIdx: number, value: string) => {
-    const updated = [...anime.seasons];
-    updated[sIdx].episodes[eIdx].url = value;
-    setAnime({ ...anime, seasons: updated });
+    setAnime(prev => {
+      const newSeasons = [...prev.seasons];
+      const newEpisodes = [...newSeasons[sIdx].episodes];
+      newEpisodes[eIdx] = { ...newEpisodes[eIdx], url: value };
+      newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+      return { ...prev, seasons: newSeasons };
+    });
   };
 
   // 📤 Отправка формы
@@ -356,22 +381,120 @@ function Admin() {
               </div>
 
               {season.episodes.map((ep, eIdx) => (
-                <div key={eIdx} className="flex items-center gap-2 mb-2">
+                <div
+                  key={eIdx}
+                  className="flex flex-col gap-2 mb-3 border-b border-gray-600 pb-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      placeholder={`Название ${ep.number}-й серии (необязательно)`}
+                      value={ep.title || ""}
+                      onChange={(e) => {
+                        setAnime(prev => {
+                          const newSeasons = [...prev.seasons];
+                          const newEpisodes = [...newSeasons[sIdx].episodes];
+                          newEpisodes[eIdx] = { ...newEpisodes[eIdx], title: e.target.value };
+                          newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+                          return { ...prev, seasons: newSeasons };
+                        });
+                      }}
+                      className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => deleteEpisode(sIdx, eIdx)}
+                      className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* 🔗 Ссылка на серию */}
                   <input
                     placeholder={`Ссылка на ${ep.number}-ю серию`}
                     value={ep.url}
-                    onChange={e => handleEpisodeChange(sIdx, eIdx, e.target.value)}
+                    onChange={(e) => handleEpisodeChange(sIdx, eIdx, e.target.value)}
                     className="w-full p-2 rounded bg-gray-700 border border-gray-600"
                   />
-                  <button
-                    type="button"
-                    onClick={() => deleteEpisode(sIdx, eIdx)}
-                    className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm"
-                  >
-                    ×
-                  </button>
+
+                  {/* 🎵 Опенинг */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm opacity-80">Опенинг:</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Начало (например: 1:30)"
+                        value={ep.openingStart || ""}
+                        onChange={(e) => {
+                          setAnime(prev => {
+                            const newSeasons = [...prev.seasons];
+                            const newEpisodes = [...newSeasons[sIdx].episodes];
+                            newEpisodes[eIdx] = { ...newEpisodes[eIdx], openingStart: e.target.value };
+                            newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+                            return { ...prev, seasons: newSeasons };
+                          });
+                        }}
+                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Конец (например: 2:47)"
+                        value={ep.openingEnd || ""}
+                        onChange={(e) => {
+                          setAnime(prev => {
+                            const newSeasons = [...prev.seasons];
+                            const newEpisodes = [...newSeasons[sIdx].episodes];
+                            newEpisodes[eIdx] = { ...newEpisodes[eIdx], openingEnd: e.target.value };
+                            newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+                            return { ...prev, seasons: newSeasons };
+                          });
+                        }}
+                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 🎵 Эндинг */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm opacity-80">Эндинг:</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Начало (например: 20:10)"
+                        value={ep.endingStart || ""}
+                        onChange={(e) => {
+                          setAnime(prev => {
+                            const newSeasons = [...prev.seasons];
+                            const newEpisodes = [...newSeasons[sIdx].episodes];
+                            newEpisodes[eIdx] = { ...newEpisodes[eIdx], endingStart: e.target.value };
+                            newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+                            return { ...prev, seasons: newSeasons };
+                          });
+                        }}
+                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Конец (например: 23:10)"
+                        value={ep.endingEnd || ""}
+                        onChange={(e) => {
+                          setAnime(prev => {
+                            const newSeasons = [...prev.seasons];
+                            const newEpisodes = [...newSeasons[sIdx].episodes];
+                            newEpisodes[eIdx] = { ...newEpisodes[eIdx], endingEnd: e.target.value };
+                            newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
+                            return { ...prev, seasons: newSeasons };
+                          });
+                        }}
+                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
+
+
+
 
               <button
                 type="button"

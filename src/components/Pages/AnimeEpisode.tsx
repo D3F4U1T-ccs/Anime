@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import Hls from "hls.js";
+import { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import VideoPlayer from "./VideoPlayer";
 
 interface Episode {
   number: number;
   url: string;
+  title?: string;
+  openingStart?: string;
+  openingEnd?: string;
+  endingStart?: string;
+  endingEnd?: string;
 }
 
 interface Season {
@@ -32,13 +36,12 @@ export default function AnimeEpisode() {
 
   const [anime, setAnime] = useState<Anime | null>(null);
   const [episodeUrl, setEpisodeUrl] = useState<string | null>(null);
+  const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const navigate = useNavigate();
 
-  // 🔹 Получение данных эпизода
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -57,15 +60,17 @@ export default function AnimeEpisode() {
         if (!data?.anime) {
           setAnime(null);
           setEpisodeUrl(null);
+          setEpisode(null);
         } else {
           setAnime(data.anime);
           const season = data.anime.seasons.find(
             (s: Season) => s.seasonNumber === Number(seasonNumber)
           );
-          const episode = season?.episodes.find(
+          const ep = season?.episodes.find(
             (e: Episode) => e.number === Number(episodeNumber)
           );
-          setEpisodeUrl(episode?.url || null);
+          setEpisode(ep || null);
+          setEpisodeUrl(ep?.url || null);
         }
       } catch (err) {
         console.error("Ошибка при загрузке эпизода:", err);
@@ -80,135 +85,127 @@ export default function AnimeEpisode() {
     };
   }, [slug, seasonNumber, episodeNumber]);
 
-  // 🔹 Инициализация плеера
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const cleanUp = () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-      video.onerror = null;
-      video.oncanplay = null;
-    };
-
-    cleanUp();
-
-    if (!episodeUrl) return;
-
-    video.crossOrigin = "anonymous";
-    const lower = episodeUrl.trim().toLowerCase();
-    const isM3u8 = lower.endsWith(".m3u8");
-    const isTs = lower.endsWith(".ts");
-    const isMp4 = lower.endsWith(".mp4");
-
-    try {
-      if (isM3u8) {
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hlsRef.current = hls;
-          hls.loadSource(episodeUrl);
-          hls.attachMedia(video);
-
-          hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data?.fatal) {
-              console.error("HLS fatal error:", data);
-              setErrorMsg("Ошибка HLS-потока. Попробуйте обновить страницу.");
-            }
-          });
-        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = episodeUrl;
-        } else {
-          setErrorMsg("Ваш браузер не поддерживает HLS.");
-        }
-      } else if (isMp4 || isTs) {
-        video.src = episodeUrl;
-      } else {
-        // неизвестное расширение
-        video.src = episodeUrl;
-      }
-
-      video.onerror = () => {
-        const err = video.error;
-        console.error("Video error:", err);
-        let msg = "Ошибка воспроизведения.";
-        if (err) {
-          switch (err.code) {
-            case err.MEDIA_ERR_ABORTED:
-              msg = "Воспроизведение прервано.";
-              break;
-            case err.MEDIA_ERR_NETWORK:
-              msg = "Сетевая ошибка при загрузке видео.";
-              break;
-            case err.MEDIA_ERR_DECODE:
-              msg = "Ошибка декодирования (формат не поддерживается).";
-              break;
-            case err.MEDIA_ERR_SRC_NOT_SUPPORTED:
-              msg = "Источник видео не поддерживается.";
-              break;
-          }
-        }
-        setErrorMsg(msg);
-      };
-    } catch (e) {
-      console.error("Ошибка при инициализации видео:", e);
-      setErrorMsg("Ошибка инициализации видео.");
-    }
-
-    return () => cleanUp();
-  }, [episodeUrl]);
-
   if (loading)
-    return <div className="text-center mt-10 text-gray-400">Загрузка...</div>;
+    return (
+      <div className="flex justify-center items-center h-[80vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-violet-500 border-solid"></div>
+      </div>
+    );
+
   if (!anime)
-    return <div className="text-center mt-10 text-red-400">Аниме не найдено</div>;
+    return (
+      <div className="text-center mt-[200px] text-red-400 text-lg">
+        Аниме не найдено 😢
+      </div>
+    );
 
   const currentSeason = anime.seasons.find(
     (s) => s.seasonNumber === Number(seasonNumber)
   );
 
+  const totalEpisodes = currentSeason?.episodes.length || 0;
+  const currentEp = Number(episodeNumber);
+
+  const prevEpisode =
+    currentEp > 1
+      ? `/anime/${slug}/season/${seasonNumber}/episode/${currentEp - 1}`
+      : null;
+
+  const nextEpisode =
+    currentEp < totalEpisodes
+      ? `/anime/${slug}/season/${seasonNumber}/episode/${currentEp + 1}`
+      : null;
+
+  const handleSkipEnding = () => {
+    if (nextEpisode) {
+      navigate(nextEpisode);
+    } else {
+      // Если нет next, seek сделает плеер сам
+    }
+  };
+
   return (
-    <div className="max-w-5xl mx-auto mt-[100px] text-white p-4">
-      <h1 className="text-3xl font-bold mb-3">{anime.nameRu}</h1>
-      <p className="text-gray-400 mb-6">{anime.description}</p>
+    <div className="mt-[80px] md:mt-[100px] w-full flex justify-center">
+      <div className="w-full md:max-w-5xl md:px-4 px-0">
+        <div className="bg-neutral-900/90 rounded-none md:rounded-2xl p-3 md:p-6 shadow-lg">
+          {/* 🔹 Обложка и заголовок */}
+          <div className="flex flex-col items-center mb-6 text-center">
+            <img
+              src={anime.thumbnail}
+              alt={anime.nameRu}
+              className="w-[160px] h-[160px] rounded-full object-cover shadow-md mb-3"
+            />
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
+              {anime.nameRu}
+            </h1>
+          </div>
+          <h2 className="text-xl text-center text-white font-semibold mt-3">
+            {/* {episode?.title || `Серия ${episode?.number}`} */}
+          </h2>
 
-      {/* 🎬 Плеер */}
-      {episodeUrl ? (
+          {/* 🎬 Видео */}
+          <div className="mt-4 w-full">
+            {episodeUrl ? (
+              <VideoPlayer
+                episodeUrl={episodeUrl}
+                openingStart={episode?.openingStart}
+                openingEnd={episode?.openingEnd}
+                endingStart={episode?.endingStart}
+                endingEnd={episode?.endingEnd}
+                onSkipEnding={handleSkipEnding}
+                hasNextEpisode={!!nextEpisode}
+              />
+            ) : (
+              <p className="text-gray-400 text-center">
+                Эпизод не найден или не имеет ссылки.
+              </p>
+            )}
+          </div>
 
-        <VideoPlayer  episodeUrl={episodeUrl || undefined} />
-      ) : (
-        <div className="text-center text-gray-400 mt-10">
-          Эпизод не найден или не имеет ссылки.
-        </div>
-      )}
+          {errorMsg && (
+            <div className="mt-3 text-sm text-yellow-400 text-center">
+              ⚠️ {errorMsg}
+            </div>
+          )}
 
-      {errorMsg && (
-        <div className="mt-3 text-sm text-yellow-300">{errorMsg}</div>
-      )}
-
-
-      {/* 📜 Список серий */}
-      {currentSeason && (
-        <div className="flex flex-wrap gap-2 mt-6">
-          {currentSeason.episodes.map((ep) => (
-            <Link
-              key={ep.number}
-              to={`/anime/${slug}/season/${seasonNumber}/episode/${ep.number}`}
-              className={`px-4 py-2 rounded-lg border transition-all ${ep.number === Number(episodeNumber)
-                ? "bg-blue-600 border-blue-600"
-                : "border-gray-600 hover:bg-gray-700"
+          {/* 🔘 Кнопки управления */}
+          <div className="flex justify-between items-center mt-6">
+            <button
+              onClick={() => prevEpisode && navigate(prevEpisode)}
+              disabled={!prevEpisode}
+              className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${prevEpisode
+                  ? "bg-violet-600 hover:bg-violet-700"
+                  : "bg-gray-700 cursor-not-allowed"
                 }`}
             >
-              Серия {ep.number}
+              ◀ Предыдущая
+            </button>
+
+            <Link
+              to={`/anime/${slug}`}
+              className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium transition-all"
+            >
+              ℹ Инфо
             </Link>
-          ))}
+
+            <button
+              onClick={() => nextEpisode && navigate(nextEpisode)}
+              disabled={!nextEpisode}
+              className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${nextEpisode
+                  ? "bg-violet-600 hover:bg-violet-700"
+                  : "bg-gray-700 cursor-not-allowed"
+                }`}
+            >
+              Следующая ▶
+            </button>
+          </div>
+
+          {/* 📜 Описание */}
+          <div className="mt-8 text-gray-300 text-sm md:text-base leading-relaxed">
+            {anime.description}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

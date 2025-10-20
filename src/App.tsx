@@ -13,7 +13,7 @@ import AnimeEpisode from "./components/Pages/AnimeEpisode";
 
 function App() {
   const location = useLocation();
-  const simpleHeaderPages = ["/login", "/register"];
+  const simpleHeaderPages = [ "/Login", "/login", "/register"];
 
   return (
     <>

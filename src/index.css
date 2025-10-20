@@ -31,7 +31,7 @@
     --radius: 0.5rem;
 
     /* Градиент для светлой темы */
-    --background-gradient: linear-gradient(to bottom right, #ababab, #ffffff, #9c9c9c);
+    --background-gradient: linear-gradient(to bottom right, #595959, #ffffff, #595959);
   }
 
   .dark {
@@ -61,7 +61,7 @@
     --chart-5: 340 75% 55%;
 
     /* Градиент для тёмной темы */
-    --background-gradient: linear-gradient(to bottom right, #242427, #000000, #1f1f22);
+    --background-gradient: linear-gradient(to bottom right, #404045, #000000, #404045);
   }
 }
 
