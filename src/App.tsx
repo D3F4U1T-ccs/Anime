@@ -3,6 +3,7 @@ import "./App.css";
 import Navbar from "./components/Pages/Shared/Navbar";
 import Admin from "./components/Pages/Admin";
 import Home from "./components/Pages/Home";
+import PreHome from "./components/Pages/PreHome";
 import Contact from "./components/Pages/Contact";
 import Login from "./components/Pages/Shared/login";
 import Register from "./components/Pages/Shared/register";
@@ -43,6 +44,7 @@ function App() {
       {/* 🔹 Основные маршруты */}
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/PreHome" element={<PreHome />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/register" element={<Register />} />
         <Route path="/Openings" element={<Openinings />} />

@@ -175,7 +175,7 @@ export default function AnimePage() {
         </div>
 
         {/* Episodes section */}
-        <h2 className="text-2xl font-bold mt-10 mb-5  dark:text-white">Серии:</h2>
+        <h2 className="text-2xl font-bold mt-10 mb-5  dark:text-white">Смотреть:</h2>
 
         {(!anime.seasons || anime.seasons.length === 0) && (
           <p className="text-gray-400 text-center">Сезонов пока нет</p>
