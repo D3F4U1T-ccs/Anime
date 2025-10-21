@@ -156,3 +156,7 @@ function Register() {
 }
 
 export default Register;
+
+
+// <div className="flex justify-center items-center h-[900px]">
+//       <div className="w-[900px] bg-slate-600 p-6 rounded-2xl shadow-lg"></div>

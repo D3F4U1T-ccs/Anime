@@ -8,6 +8,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Anime = require("./models/Anime");
+const Recommendation = require("./models/Recommendation");
 const { sendCodeToEmail, checkVerificationCode } = require("./Verification");
 const verifyAdmin = require("./middleware/verifyAdmin");
 const User = require("./models/User");
@@ -36,7 +37,7 @@ async function deleteUnverifiedUsers() {
   }
 }
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
-
+// === ПРОКСИ (только проксирование) ===
 app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send("❌ Не указана ссылка (url)");
@@ -58,16 +59,67 @@ app.get("/proxy", async (req, res) => {
       res.setHeader("Content-Length", response.headers.get("content-length"));
     if (response.headers.get("accept-ranges"))
       res.setHeader("Accept-Ranges", response.headers.get("accept-ranges"));
-    if (response.status === 206)
-      res.status(206); // Partial content (для Range-запросов)
+    if (response.status === 206) res.status(206);
 
-    // Потоковая передача (pipe)
+    // Потоковая передача
     const passThrough = new stream.PassThrough();
     response.body.pipe(passThrough);
     passThrough.pipe(res);
   } catch (err) {
     console.error("Ошибка при проксировании видео:", err);
     res.status(500).send("Ошибка при проксировании видео");
+  }
+});
+
+// ===== Recommendations (store animeId + populate) =====
+
+// GET /api/recommendations?limit=8
+// server.js — recommendations (use animeId + populate)
+app.get("/api/recommendations", async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 8));
+    // populate so front gets full anime with seasons/episodes
+    const recs = await Recommendation.find().sort({ createdAt: -1 }).limit(limit).populate("animeId");
+    const formatted = recs.map(r => ({ _id: r._id, anime: r.animeId }));
+    return res.json(formatted);
+  } catch (err) {
+    console.error("Ошибка при получении рекомендаций:", err);
+    return res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+app.post("/api/recommendations", verifyAdmin, async (req, res) => {
+  try {
+    const { animeId } = req.body;
+    if (!animeId || !mongoose.Types.ObjectId.isValid(animeId)) {
+      return res.status(400).json({ message: "Неверный animeId" });
+    }
+    const anime = await Anime.findById(animeId);
+    if (!anime) return res.status(404).json({ message: "Аниме с таким id не найдено" });
+
+    const exists = await Recommendation.findOne({ animeId });
+    if (exists) return res.status(400).json({ message: "Эта рекомендация уже добавлена" });
+
+    const rec = new Recommendation({ animeId });
+    await rec.save();
+    await rec.populate("animeId");
+    return res.status(201).json({ _id: rec._id, anime: rec.animeId });
+  } catch (err) {
+    console.error("POST /api/recommendations error:", err);
+    return res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
+
+app.delete("/api/recommendations/:id", verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Неверный id" });
+    const deleted = await Recommendation.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: "Рекомендация не найдена" });
+    return res.json({ message: "Удалено" });
+  } catch (err) {
+    console.error("DELETE /api/recommendations/:id error:", err);
+    return res.status(500).json({ message: "Ошибка сервера" });
   }
 });
 

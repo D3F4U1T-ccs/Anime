@@ -22,7 +22,7 @@ function About() {
 
         <div className="flex justify-center gap-6 mt-6">
           <a
-            href="https://t.me/yourtelegram" // вставь свой Telegram
+            href="https://t.me/defaults_tgs" // вставь свой Telegram
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition"

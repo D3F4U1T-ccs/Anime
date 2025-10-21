@@ -84,11 +84,7 @@ function Home() {
               anime.seasons?.reduce((acc, s) => acc + (s.episodes?.length ?? 0), 0) ?? 0;
 
             return (
-              <div
-                key={anime._id}
-                onClick={() => navigate(`/anime/${anime.slug}`)}
-                className="cursor-pointer flex flex-col items-center group"
-              >
+              <div key={anime._id} className="flex flex-col items-center group">
                 <div className="relative z-10 w-[215px] h-[215px] rounded-full overflow-hidden">
                   <img
                     src={anime.thumbnail}
@@ -161,15 +157,18 @@ function Home() {
                     <div
                       role="dialog"
                       aria-label={`${anime.nameRu} info`}
-                      className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-300 ease-out ${POP_POSITION === "top" ? "bottom-[130%]" : "top-full mt-2"
-                        } w-[360px] p-4 bg-white dark:bg-gray-900 text-sm rounded-lg z-50 border border-gray-200 dark:border-gray-800 shadow-lg ${openId === anime._id ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
-                        }`}
+                      className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-300 ease-out ${
+                        POP_POSITION === "top" ? "bottom-[130%]" : "top-full mt-2"
+                      } w-[360px] p-4 bg-white dark:bg-gray-900 text-sm rounded-lg z-50 border border-gray-200 dark:border-gray-800 shadow-lg ${
+                        openId === anime._id ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+                      }`}
                       style={{
                         minWidth: 320,
                         maxWidth: 480,
-                        maxHeight: "70vh", // ограничение по экрану (чтобы не вылезало за пределы)
-                        overflowY: "auto", // включаем авто-прокрутку, если уж совсем огромное
+                        maxHeight: "70vh",
+                        overflowY: "auto",
                       }}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <h3 className="font-semibold text-base truncate">
                         {anime.nameRu || anime.nameEn}
@@ -184,7 +183,6 @@ function Home() {
                       >
                         <p>{anime.description ?? "Описание отсутствует"}</p>
                       </div>
-
 
                       <div className="mt-3 flex flex-wrap gap-1">
                         {anime.genres?.slice(0, 8).map((g) => (
@@ -206,6 +204,13 @@ function Home() {
                         <span>Сезонов: <strong>{seasonsCount}</strong></span>
                         <span>Серий: <strong>{episodesCount}</strong></span>
                       </div>
+
+                      <button
+                        onClick={() => navigate(`/anime/${anime.slug}`)}
+                        className="mt-3 text-xs text-blue-500 hover:underline"
+                      >
+                        Перейти к аниме →
+                      </button>
                     </div>
                   </div>
                   {/* --- end info --- */}

@@ -54,6 +54,15 @@ function Navbar() {
         {/* 🔗 Навигация */}
         <div className="flex items-center gap-6">
           <NavLink
+            to="/PreHome"
+            className={({ isActive }) =>
+              `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
+              ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
+            }
+          >
+           Аниме_gg
+          </NavLink>
+           <NavLink
             to="/"
             className={({ isActive }) =>
               `flex items-center gap-2 text-[16px] font-semibold transition-colors duration-300
@@ -62,6 +71,7 @@ function Navbar() {
           >
             <Tv className="w-4 h-4" /> Аниме
           </NavLink>
+      
 
           <NavLink
             to="/Openings"
@@ -79,7 +89,7 @@ function Navbar() {
               ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
             }
           >
-            Обо мне
+            О Проекте
           </NavLink>
 
 
