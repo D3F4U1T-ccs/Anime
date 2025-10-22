@@ -144,6 +144,47 @@ const normalizeSlug = (text) => {
 };
 
 
+  // PUT /api/anime/:id — обновление аниме
+  app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
+      const update = req.body;
+      // Приводим rating к числу и делаем минимальную валидацию
+      if (update.rating !== undefined) update.rating = Number(update.rating) || 0;
+
+      // Опционально: нормализовать slug как в add
+      if (update.slug) update.slug = String(update.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+      const anime = await Anime.findById(id);
+      if (!anime) return res.status(404).json({ message: 'Аниме не найдено' });
+
+      // Записываем поля
+      Object.assign(anime, update);
+      await anime.save();
+      res.json({ message: 'Сохранено', anime });
+    } catch (err) {
+      console.error('PUT /api/anime/:id error:', err);
+      res.status(500).json({ message: 'Ошибка сервера' });
+    }
+  });
+
+  // DELETE /api/anime/:id — уже может быть в вашем server.js; если нет, вот простой вариант:
+  app.delete('/api/anime/:id', verifyAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
+      const del = await Anime.findByIdAndDelete(id);
+      if (!del) return res.status(404).json({ message: 'Не найдено' });
+      res.json({ message: 'Удалено' });
+    } catch (err) {
+      console.error('DELETE /api/anime/:id error:', err);
+      res.status(500).json({ message: 'Ошибка сервера' });
+    }
+  });
+
+
+
 // 🔹 Добавление аниме (только админ)
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   try {
