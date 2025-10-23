@@ -43,8 +43,8 @@ function App() {
 
       {/* 🔹 Основные маршруты */}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/PreHome" element={<PreHome />} />
+        <Route path="/anime" element={<Home />} />
+        <Route path="/" element={<PreHome />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/register" element={<Register />} />
         <Route path="/Openings" element={<Openinings />} />

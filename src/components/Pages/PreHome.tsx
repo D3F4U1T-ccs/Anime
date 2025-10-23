@@ -122,8 +122,8 @@ export default function PreHome() {
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-300 dark:bg-gray-600 px-4 sm:px-8 py-10">
-      <div className="Up_part- bg-gray-300 hidden xl:flex dark:bg-gray-600 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
+    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-100 dark:bg-gray-900 px-4 sm:px-8 py-10">
+      <div className="Up_part- bg-gray-100 hidden xl:flex dark:bg-gray-900 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
       <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-8 text-center">🎯 Рекомендуем посмотреть</h2>
 
       {recs.length === 0 ? (
