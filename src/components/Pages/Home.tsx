@@ -174,20 +174,8 @@ function Home() {
 
   // compose filtered list: text search (debounced) + filters
   const filteredList = useMemo(() => {
-    const q = debouncedQuery.toLowerCase();
     let list = animeList.filter((a) => {
-      // текстовый матч
-      let textMatch = true;
-      if (q) {
-        textMatch =
-          (a.nameRu?.toLowerCase().includes(q) ?? false) ||
-          (a.nameEn?.toLowerCase().includes(q) ?? false) ||
-          (a.slug?.toLowerCase().includes(q) ?? false) ||
-          (a.genres && a.genres.join(" ").toLowerCase().includes(q)) ||
-          (a.types && a.types.join(" ").toLowerCase().includes(q));
-      }
-      if (!textMatch) return false;
-
+      
       // жанры: если выбран хотя бы 1 -> у аниме должен быть хотя бы один из них
       if (selectedGenres.length > 0) {
         if (!a.genres || !a.genres.some((g) => selectedGenres.includes(g))) return false;
@@ -291,9 +279,9 @@ function Home() {
 
   return (
 
-    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-100 dark:bg-gray-900  px-4 sm:px-8 py-10">
+    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-200 dark:bg-gray-900  px-4 sm:px-8 py-10">
 
-      <div className="Up_part- bg-gray-100 hidden xl:flex dark:bg-gray-900 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
+      <div className="Up_part- bg-gray-200 hidden xl:flex dark:bg-gray-900 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
       <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4 text-center">Смотреть лучшие аниме</h1>
 
       {/* Search + Filters */}

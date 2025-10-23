@@ -11,12 +11,13 @@ import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
 import AnimePage from "./components/Pages/AnimePage";
 import AnimeEpisode from "./components/Pages/AnimeEpisode";
-import Openinings from "./components/Pages/Openinings";
+import OpeningPage from './components/Pages/OpeningPage';
+import Openings from './components/Pages/Openings';
+import OpeningEpisode from './components/Pages/OpeningEpisode';
 import About from "./components/Pages/About";
-
 function App() {
   const location = useLocation();
-  const simpleHeaderPages = [ "/Login", "/login", "/register"];
+  const simpleHeaderPages = ["/Login", "/login", "/Verification", "/verification", "/Register", "/register"];
 
   return (
     <>
@@ -26,9 +27,9 @@ function App() {
           <Link to="/">
             <button
               className="flex items-center gap-2 px-4 py-2 rounded-full
-              bg-gradient-to-tr from-white/70 via-white/10 to-white/40
+              bg-gradient-to-tl from-white/70 via-white/10 to-white/40
               text-black
-              dark:bg-gradient-to-tr dark:from-black/80 dark:via-black/10 dark:to-black/80
+              dark:bg-gradient-to-tl dark:from-black/80 dark:via-black/10 dark:to-black/80
               dark:text-white
               shadow-lg shadow-black/30 dark:shadow-black/70
               hover:brightness-110 transition-all duration-200"
@@ -47,20 +48,27 @@ function App() {
         <Route path="/" element={<PreHome />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/Openings" element={<Openinings />} />
+
+        {/* Openings */}
+        <Route path="/Openings" element={<Openings />} />
+        <Route path="/Openings/:slug" element={<OpeningPage />} />
+        <Route
+          path="/Openings/:slug/season/:seasonNumber/episode/:episodeNumber"
+          element={<OpeningEpisode />}
+        />
+
         <Route path="/verification" element={<Verification />} />
         <Route path="/login" element={<Login />} />
         <Route path="/About" element={<About />} />
 
+        {/* Anime */}
         <Route
           path="/anime/:slug/season/:seasonNumber/episode/:episodeNumber"
           element={<AnimeEpisode />}
         />
-
-        {/* Страница аниме */}
         <Route path="/anime/:slug" element={<AnimePage />} />
 
-        {/* 🔒 Защищённая админка */}
+        {/* admin */}
         <Route
           path="/admin"
           element={

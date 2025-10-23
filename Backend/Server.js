@@ -144,44 +144,44 @@ const normalizeSlug = (text) => {
 };
 
 
-  // PUT /api/anime/:id — обновление аниме
-  app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
-      const update = req.body;
-      // Приводим rating к числу и делаем минимальную валидацию
-      if (update.rating !== undefined) update.rating = Number(update.rating) || 0;
+// PUT /api/anime/:id — обновление аниме
+app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
+    const update = req.body;
+    // Приводим rating к числу и делаем минимальную валидацию
+    if (update.rating !== undefined) update.rating = Number(update.rating) || 0;
 
-      // Опционально: нормализовать slug как в add
-      if (update.slug) update.slug = String(update.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    // Опционально: нормализовать slug как в add
+    if (update.slug) update.slug = String(update.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-      const anime = await Anime.findById(id);
-      if (!anime) return res.status(404).json({ message: 'Аниме не найдено' });
+    const anime = await Anime.findById(id);
+    if (!anime) return res.status(404).json({ message: 'Аниме не найдено' });
 
-      // Записываем поля
-      Object.assign(anime, update);
-      await anime.save();
-      res.json({ message: 'Сохранено', anime });
-    } catch (err) {
-      console.error('PUT /api/anime/:id error:', err);
-      res.status(500).json({ message: 'Ошибка сервера' });
-    }
-  });
+    // Записываем поля
+    Object.assign(anime, update);
+    await anime.save();
+    res.json({ message: 'Сохранено', anime });
+  } catch (err) {
+    console.error('PUT /api/anime/:id error:', err);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
 
-  // DELETE /api/anime/:id — уже может быть в вашем server.js; если нет, вот простой вариант:
-  app.delete('/api/anime/:id', verifyAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
-      const del = await Anime.findByIdAndDelete(id);
-      if (!del) return res.status(404).json({ message: 'Не найдено' });
-      res.json({ message: 'Удалено' });
-    } catch (err) {
-      console.error('DELETE /api/anime/:id error:', err);
-      res.status(500).json({ message: 'Ошибка сервера' });
-    }
-  });
+// DELETE /api/anime/:id — уже может быть в вашем server.js; если нет, вот простой вариант:
+app.delete('/api/anime/:id', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
+    const del = await Anime.findByIdAndDelete(id);
+    if (!del) return res.status(404).json({ message: 'Не найдено' });
+    res.json({ message: 'Удалено' });
+  } catch (err) {
+    console.error('DELETE /api/anime/:id error:', err);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
 
 
 
@@ -545,7 +545,231 @@ app.post("/api/send-code", async (req, res) => {
   }
 });
 
-// Server.js
+// GET /api/openings — возвращает список аниме с подсчитанными метриками и первичными OP/ED временами
+app.get('/api/openings', async (req, res) => {
+  try {
+    // берём нужные поля (включая seasons для подсчётов)
+    const items = await Anime.find({}, {
+      nameRu: 1,
+      nameEn: 1,
+      slug: 1,
+      thumbnail: 1,
+      seasons: 1,
+      rating: 1,
+      dates: 1
+    }).lean();
+
+    const result = (items || []).map(i => {
+      const seasons = Array.isArray(i.seasons) ? i.seasons : [];
+      const seasonsCount = seasons.length;
+
+      // подсчёт эпизодов — берём безопасно, если episodes — массив или объект
+      const episodesCount = seasons.reduce((sum, s) => {
+        if (!s) return sum;
+        const eps = s.episodes;
+        if (Array.isArray(eps)) return sum + eps.length;
+        if (eps && typeof eps === 'object') return sum + Object.keys(eps).length;
+        return sum;
+      }, 0);
+
+      // Найдём первые встретившиеся OP/ED времена (обычно в серии 1)
+      let openingStart = null, openingEnd = null, endingStart = null, endingEnd = null;
+      outer: for (const s of seasons) {
+        if (!s || !s.episodes) continue;
+        const eps = Array.isArray(s.episodes) ? s.episodes : Object.values(s.episodes || {});
+        for (const ep of eps) {
+          if (!openingStart && ep?.openingStart) openingStart = ep.openingStart;
+          if (!openingEnd && ep?.openingEnd) openingEnd = ep.openingEnd;
+          if (!endingStart && ep?.endingStart) endingStart = ep.endingStart;
+          if (!endingEnd && ep?.endingEnd) endingEnd = ep.endingEnd;
+          if (openingStart && openingEnd && endingStart && endingEnd) break outer;
+        }
+      }
+
+      // rating и firstAirYear (если есть dates — берем первый год)
+      const rating = (i.rating !== undefined && i.rating !== null) ? Number(i.rating) : null;
+      let firstAirYear = null;
+      if (Array.isArray(i.dates) && i.dates.length > 0) {
+        try {
+          const d = new Date(i.dates[0]);
+          if (!isNaN(d.getTime())) firstAirYear = d.getFullYear();
+        } catch { }
+      }
+
+      return {
+        _id: i._id,
+        nameRu: i.nameRu || '',
+        nameEn: i.nameEn || '',
+        slug: i.slug || '',
+        thumbnail: i.thumbnail || '',
+        seasonsCount,
+        episodesCount,
+        openingStart: openingStart ?? null,
+        openingEnd: openingEnd ?? null,
+        endingStart: endingStart ?? null,
+        endingEnd: endingEnd ?? null,
+        rating,
+        firstAirYear
+      };
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error('GET /api/openings error:', err);
+    return res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+
+
+// GET /api/openings/:identifier — возвращает anime, но без полей openingStart/openingEnd в эпизодах
+app.get('/api/openings/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    if (!identifier) return res.status(400).json({ message: "Нет параметра identifier" });
+
+    let anime = null;
+    // пробуем ObjectId
+    if (mongoose.Types.ObjectId.isValid(identifier)) {
+      anime = await Anime.findById(identifier).lean();
+      if (anime) return res.json(sanitizeOpeningsAnime(anime));
+    }
+
+    // иначе — по slug (используем normalizeSlug)
+    const normalized = normalizeSlug(identifier);
+    anime = await Anime.findOne({ slug: normalized }).lean();
+    if (!anime) return res.status(404).json({ message: "Аниме не найдено" });
+
+    res.json(sanitizeOpeningsAnime(anime));
+  } catch (err) {
+    console.error('GET /api/openings/:identifier error:', err);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Вспомогательная функция: клонируем объект и удаляем опенинг-поля из эпизодов
+function sanitizeOpeningsAnime(animeObj) {
+  try {
+    // глубокая копия (lean() уже даёт plain object, но клонирую, чтобы безопасно менять)
+    const out = JSON.parse(JSON.stringify(animeObj));
+    if (Array.isArray(out.seasons)) {
+      out.seasons.forEach(season => {
+        if (Array.isArray(season.episodes)) {
+          season.episodes.forEach(ep => {
+            // удаляем поля, связанные с опенингом (если они есть)
+            delete ep.openingStart;
+            delete ep.openingEnd;
+            // при желании можно удалить любые другие поля, например ending*
+          });
+        }
+      });
+    }
+    return out;
+  } catch (err) {
+    console.error('sanitizeOpeningsAnime error:', err);
+    return animeObj;
+  }
+}
+// GET /api/openings — список аниме с информацией об опенингах и эндингах
+app.get("/api/openings", async (req, res) => {
+  try {
+    const items = await Anime.find(
+      {},
+      {
+        nameRu: 1,
+        nameEn: 1,
+        slug: 1,
+        thumbnail: 1,
+        seasons: 1,
+        rating: 1,
+        dates: 1,
+      }
+    );
+
+    // Подсчитываем информацию для каждой записи
+    const formatted = items.map((anime) => {
+      const seasons = Array.isArray(anime.seasons) ? anime.seasons : [];
+      const seasonsCount = seasons.length;
+      const episodesCount = seasons.reduce(
+        (acc, s) => acc + (s.episodes?.length || 0),
+        0
+      );
+
+      // Ищем первый опенинг и эндинг
+      let openingStart = null;
+      let openingEnd = null;
+      let endingStart = null;
+      let endingEnd = null;
+
+      for (const s of seasons) {
+        for (const e of s.episodes || []) {
+          if (e.openingStart && !openingStart) openingStart = e.openingStart;
+          if (e.openingEnd && !openingEnd) openingEnd = e.openingEnd;
+          if (e.endingStart && !endingStart) endingStart = e.endingStart;
+          if (e.endingEnd && !endingEnd) endingEnd = e.endingEnd;
+        }
+      }
+
+      // Год первой даты (если есть)
+      const firstAirYear =
+        Array.isArray(anime.dates) && anime.dates.length > 0
+          ? new Date(anime.dates[0]).getFullYear()
+          : null;
+
+      return {
+        _id: anime._id,
+        nameRu: anime.nameRu,
+        nameEn: anime.nameEn,
+        slug: anime.slug,
+        thumbnail: anime.thumbnail,
+        seasonsCount,
+        episodesCount,
+        openingStart,
+        openingEnd,
+        endingStart,
+        endingEnd,
+        rating: anime.rating ?? null,
+        firstAirYear,
+      };
+    });
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Ошибка при получении /api/openings:", err);
+    res.status(500).json({ message: "Ошибка при получении списка опенингов" });
+  }
+});
+
+
+// GET /api/openings/:slug/season-:seasonNumber/episode-:episodeNumber
+app.get("/api/openings/:slug/season-:seasonNumber/episode-:episodeNumber", async (req, res) => {
+  try {
+    const { slug, seasonNumber, episodeNumber } = req.params;
+
+    const anime = await Anime.findOne({ slug });
+    if (!anime) return res.status(404).json({ message: "Аниме не найдено" });
+
+    const season = (anime.seasons || []).find(s => s.seasonNumber === Number(seasonNumber));
+    if (!season) return res.status(404).json({ message: "Сезон не найден" });
+
+    const episode = (season.episodes || []).find(e => e.number === Number(episodeNumber));
+    if (!episode) return res.status(404).json({ message: "Эпизод не найден" });
+
+    // клонируем и удаляем опенинг-поля (чтобы на OpeningEpisode не было опенинг-меток)
+    const episodeCopy = JSON.parse(JSON.stringify(episode));
+    delete episodeCopy.openingStart;
+    delete episodeCopy.openingEnd;
+    // при желании: delete episodeCopy.endingStart; delete episodeCopy.endingEnd;
+
+    // сюда можно вернуть и небольшой объект anime (без лишних полей) и season
+    const animeCopy = sanitizeOpeningsAnime ? sanitizeOpeningsAnime(anime) : JSON.parse(JSON.stringify(anime));
+
+    return res.json({ anime: animeCopy, season: { ...season, episodes: undefined }, episode: episodeCopy });
+  } catch (err) {
+    console.error("GET /api/openings episode error:", err);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+});
 
 // 🔹 Логин
 app.post("/api/login", async (req, res) => {

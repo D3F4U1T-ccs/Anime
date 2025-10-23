@@ -6,6 +6,7 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Card, CardHeader, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
+import LogImg from "../../img/10106181308166125.gif";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -64,7 +65,7 @@ function Login() {
               Требуется подтверждение!
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Ваш аккаунт не подтвержден. Пожалуйста, подтвердите свою почту.
+              Ваш аккаунт не подтверждён. Пожалуйста, подтвердите свою почту.
             </p>
             <button
               onClick={redirectToVerification}
@@ -80,16 +81,20 @@ function Login() {
         <Card className="w-[400px] max-w-md rounded-2xl bg-neutral-400/30 dark:bg-neutral-950/90 shadow-2xl shadow-black/50 backdrop-blur-sm border-0">
           <CardHeader className="text-center space-y-2">
             <div className="flex justify-center">
-              <div className="h-12 w-12 flex items-center justify-center rounded-full bg-violet-600 text-white text-xl font-bold">
-                A
+              <div className="h-[100px] w-[100px] flex items-center justify-center rounded-full bg-violet-600 overflow-hidden">
+                <img
+                  src={LogImg}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               </div>
             </div>
             <h1 className="text-2xl font-bold text-neutral-600 dark:text-white">
-              Login to AniWorld
+              Вход в AniWorld
             </h1>
-            <p className="text-sm text-neutral-400">
-              Welcome back,{" "}
-              <span className="text-violet-600">continue</span> your anime journey ✨
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              С возвращением!{" "}
+              <span className="text-violet-600">Продолжи</span> своё аниме-путешествие 
             </p>
           </CardHeader>
 
@@ -105,7 +110,7 @@ function Login() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder="Электронная почта"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
@@ -114,7 +119,7 @@ function Login() {
 
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder="Пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
@@ -125,16 +130,16 @@ function Login() {
                 type="submit"
                 className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
               >
-                Login
+                Войти
               </Button>
 
               <p className="text-sm text-center text-neutral-500">
-                Don’t have an account?{" "}
+                Нет аккаунта?{" "}
                 <Link
                   to="/register"
                   className="text-violet-500 hover:underline font-medium"
                 >
-                  Sign up
+                  Зарегистрироваться
                 </Link>
               </p>
             </form>

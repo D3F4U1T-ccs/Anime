@@ -4,6 +4,7 @@ import { Input } from "../../ui/input";
 import { Card, CardHeader, CardContent } from "../../ui/card";
 import { Separator } from "../../ui/separator";
 import { Link, useNavigate } from "react-router-dom";
+import RegImg from "../../img/aniyuki-hello-25.gif";
 
 function Register() {
   const [username, setUsername] = useState("");
@@ -11,23 +12,21 @@ function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(""); // строка — сообщение об успехе
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
-  // Используем handleSubmit (в форме) чтобы работал Enter и браузерный UX
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
     setSuccess("");
 
-    // Валидация (как в логике)
     if (!username || !email || !password || !confirmPassword) {
       setError("❌ Все поля обязательны для заполнения");
       return;
     }
 
     if (!email.includes("@") || !email.includes(".")) {
-      setError("📧 Некорректный email");
+      setError("📧 Некорректный адрес электронной почты");
       return;
     }
 
@@ -42,7 +41,6 @@ function Register() {
     }
 
     try {
-      // Отправляем в API формат: { name, email, password } — так как сервер у тебя ожидает name
       const res = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,7 +54,6 @@ function Register() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Сервер может вернуть message (или более специфичные ошибки)
         if (data.message) setError(data.message);
         else if (data.error === "nick_exists") setError("⚠️ Это имя уже занято");
         else if (data.error === "email_exists") setError("📧 Этот email уже зарегистрирован");
@@ -64,8 +61,7 @@ function Register() {
         return;
       }
 
-      // Успех — ставим сообщение, сохраняем pendingEmail и переходим на верификацию
-      setSuccess("✅ Письмо для подтверждения отправлено на почту.");
+      setSuccess("✅ Письмо для подтверждения отправлено на вашу почту.");
       localStorage.setItem("pendingEmail", email.trim().toLowerCase());
       setTimeout(() => navigate("/verification"), 1500);
     } catch (err) {
@@ -80,27 +76,34 @@ function Register() {
         <Card className="w-[400px] max-w-md rounded-2xl bg-neutral-400/30 dark:bg-neutral-950/90 shadow-2xl shadow-black/50 backdrop-blur-sm border-0">
           <CardHeader className="text-center space-y-2">
             <div className="flex justify-center">
-              <div className="h-12 w-12 flex items-center justify-center rounded-full bg-violet-600 text-white text-xl font-bold">
-                A
+              <div className="h-[100px] w-[100px] flex items-center justify-center rounded-full bg-violet-600 overflow-hidden">
+                <img
+                  src={RegImg}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               </div>
             </div>
             <h1 className="text-2xl font-bold text-neutral-600 dark:text-white">
-              Register to AniWorld
+              Регистрация в AniWorld
             </h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              Присоединяйтесь и начните{" "}
+              <span className="text-violet-600">своё аниме-путешествие</span> 
+            </p>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
               <Separator className="flex-1 bg-neutral-700" />
-              <span className="text-xs text-neutral-500">fill in the fields</span>
+              <span className="text-xs text-neutral-500">Заполните поля</span>
               <Separator className="flex-1 bg-neutral-700" />
             </div>
 
-            {/* Форма */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <Input
                 type="text"
-                placeholder="Name"
+                placeholder="Имя пользователя"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-400 focus:ring-2 focus:ring-violet-500/60"
@@ -108,7 +111,7 @@ function Register() {
               />
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder="Электронная почта"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-400 focus:ring-2 focus:ring-violet-500/60"
@@ -116,7 +119,7 @@ function Register() {
               />
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder="Пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-400 focus:ring-2 focus:ring-violet-500/60"
@@ -124,7 +127,7 @@ function Register() {
               />
               <Input
                 type="password"
-                placeholder="Confirm Password"
+                placeholder="Подтвердите пароль"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-400 focus:ring-2 focus:ring-violet-500/60"
@@ -138,13 +141,13 @@ function Register() {
                 type="submit"
                 className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
               >
-                Register
+                Зарегистрироваться
               </Button>
 
               <p className="text-sm text-center text-neutral-500">
-                Already have an account?{" "}
+                Уже есть аккаунт?{" "}
                 <Link to="/login" className="text-violet-500 hover:underline font-medium">
-                  Login
+                  Войти
                 </Link>
               </p>
             </form>
@@ -156,7 +159,3 @@ function Register() {
 }
 
 export default Register;
-
-
-// <div className="flex justify-center items-center h-[900px]">
-//       <div className="w-[900px] bg-slate-600 p-6 rounded-2xl shadow-lg"></div>

@@ -1,3 +1,4 @@
+// Admin.tsx
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -164,7 +165,7 @@ function RecommendationPanel({ token }: { token: string | null }) {
   };
 
   return (
-    <div className="bg-gray-800 p-6 rounded-2xl shadow-md mt-8">
+    <div className="bg-gray-800 p-6 rounded-2xl shadow-md">
       <h3 className="text-lg font-semibold mb-3 text-white">Управление рекомендациями (по id)</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -237,6 +238,9 @@ function AnimeManager({ token }: { token: string | null }) {
   const [selected, setSelected] = useState<AnimeData | null>(null);
   const [msg, setMsg] = useState<string>("");
 
+  // поиск
+  const [search, setSearch] = useState<string>("");
+
   const loadList = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/anime");
@@ -286,15 +290,6 @@ function AnimeManager({ token }: { token: string | null }) {
       (selSet as any)({ [name]: value });
     }
   };
-
-  // const toggleGenreSel = (g: string) => {
-  //   if (!selected) return;
-  //   selSet({ genres: selected.genres.includes(g) ? selected.genres.filter(x => x !== g) : [...selected.genres, g] });
-  // };
-  // const toggleTypeSel = (t: string) => {
-  //   if (!selected) return;
-  //   selSet({ types: selected.types.includes(t) ? selected.types.filter(x => x !== t) : [...selected.types, t] });
-  // };
 
   const addSeasonSel = () => {
     if (!selected) return;
@@ -379,27 +374,51 @@ function AnimeManager({ token }: { token: string | null }) {
     }
   };
 
+  // фильтрованный список по поиску (nameRu, nameEn, slug, _id)
+  const filteredList = list.filter((a) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (a.nameRu || "").toLowerCase().includes(q) ||
+      (a.nameEn || "").toLowerCase().includes(q) ||
+      (a.slug || "").toLowerCase().includes(q) ||
+      (a._id || "").toString().toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div className="bg-gray-800 p-6 rounded-2xl shadow-md mt-8">
+    <div className="bg-gray-800 p-6 rounded-2xl shadow-md">
       <h3 className="text-lg font-semibold mb-3 text-white">Управление аниме</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-1">
           <div className="mb-3 text-sm text-gray-300">Список аниме (клик по карточке — редактировать)</div>
+
+          <input
+            type="text"
+            placeholder="Поиск по названию, slug или id..."
+            className="w-full mb-3 p-2 rounded bg-gray-700 border border-gray-600 text-white"
+            onChange={(e) => setSearch(e.target.value)}
+            value={search}
+          />
+
           <div className="space-y-2 max-h-[420px] overflow-auto">
-            {list.map(a => (
-              <div key={(a as any)._id} onClick={() => selectAnime(a)}
-                   className="p-2 bg-gray-700 rounded flex items-center gap-3 cursor-pointer hover:border hover:border-indigo-400">
-                <div className="w-12 h-16 bg-gray-600 overflow-hidden rounded">
-                  {a.thumbnail ? <img src={a.thumbnail} className="w-full h-full object-cover" alt="" /> : <div className="text-xs text-gray-300 flex items-center justify-center h-full">Нет фото</div>}
+            {filteredList.length > 0 ? (
+              filteredList.map(a => (
+                <div key={(a as any)._id} onClick={() => selectAnime(a)}
+                  className="p-2 bg-gray-700 rounded flex items-center gap-3 cursor-pointer hover:border hover:border-indigo-400">
+                  <div className="w-12 h-16 bg-gray-600 overflow-hidden rounded">
+                    {a.thumbnail ? <img src={a.thumbnail} className="w-full h-full object-cover" alt="" /> : <div className="text-xs text-gray-300 flex items-center justify-center h-full">Нет фото</div>}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">{a.nameRu}</div>
+                    <div className="text-xs text-gray-400">{a.slug || (a as any)._id}</div>
+                  </div>
+                  <div className="text-sm text-yellow-300">{a.rating}</div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-white">{a.nameRu}</div>
-                  <div className="text-xs text-gray-400">{a.slug || (a as any)._id}</div>
-                </div>
-                <div className="text-sm text-yellow-300">{a.rating}</div>
-              </div>
-            ))}
-            {list.length === 0 && <div className="text-gray-400 text-sm">Аниме отсутствуют</div>}
+              ))
+            ) : (
+              <div className="text-gray-400 text-sm">Аниме не найдено</div>
+            )}
           </div>
         </div>
 
@@ -504,8 +523,8 @@ function AnimeManager({ token }: { token: string | null }) {
   );
 }
 
-/* ---------------------- Admin (Добавление аниме) ---------------------- */
-function Admin() {
+/* ---------------------- AddAnime (бывший Admin форма добавления) ---------------------- */
+function AddAnimeForm({ token }: { token: string | null }) {
   const [anime, setAnime] = useState<AnimeData>({
     nameRu: "",
     nameEn: "",
@@ -521,20 +540,6 @@ function Admin() {
 
   const [msg, setMsg] = useState("");
   const [slugError, setSlugError] = useState("");
-  const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    fetch("http://localhost:5000/api/check-admin", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => { if (!res.ok) throw new Error("Нет доступа"); return res.json(); })
-      .catch(() => navigate("/"));
-  }, [token, navigate]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target as HTMLInputElement | HTMLTextAreaElement;
@@ -662,8 +667,8 @@ function Admin() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto mt-[80px] p-6 bg-gray-700 text-white rounded-2xl shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-center">Админ панель — Добавить аниме</h1>
+    <div className="bg-gray-700 p-6 rounded-2xl shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Добавить аниме</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input name="nameRu" placeholder="Название (RU)" value={anime.nameRu} onChange={handleChange}
@@ -800,13 +805,68 @@ function Admin() {
       </form>
 
       {msg && <p className="text-center mt-4 text-green-400">{msg}</p>}
-
-      {/* Встроенная панель управления аниме и рекомендации */}
-      <AnimeManager token={token} />
-      <RecommendationPanel token={token} />
     </div>
   );
 }
 
-export default Admin;
+/* ---------------------- Main Admin (страница с левой панелью табов) ---------------------- */
+export default function Admin() {
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
+  // табы: "add" | "manage" | "recs"
+  const [activeTab, setActiveTab] = useState<"add" | "manage" | "recs">("add");
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetch("http://localhost:5000/api/check-admin", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => { if (!res.ok) throw new Error("Нет доступа"); return res.json(); })
+      .catch(() => navigate("/"));
+  }, [token, navigate]);
+
+  return (
+    <div className="max-w-6xl mx-auto mt-[60px] p-6">
+      <div className="flex gap-6">
+        {/* Левый бар */}
+        <div className="w-56 bg-gray-800 p-4 rounded-2xl shadow-md flex flex-col gap-3">
+          <h2 className="text-white text-lg font-semibold text-center">Админ панель</h2>
+
+          <button
+            onClick={() => setActiveTab("add")}
+            className={`text-left px-3 py-2 rounded ${activeTab === "add" ? "bg-indigo-500 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-700"}`}
+          >
+            ➕ Добавить аниме
+          </button>
+
+          <button
+            onClick={() => setActiveTab("manage")}
+            className={`text-left px-3 py-2 rounded ${activeTab === "manage" ? "bg-indigo-500 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-700"}`}
+          >
+            ⚙️ Управление аниме
+          </button>
+
+          <button
+            onClick={() => setActiveTab("recs")}
+            className={`text-left px-3 py-2 rounded ${activeTab === "recs" ? "bg-indigo-500 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-700"}`}
+          >
+            ⭐ Управление рекомендациями
+          </button>
+
+          <div className="mt-auto text-xs text-gray-400">Токен: {token ? "Есть" : "Нет"}</div>
+        </div>
+
+        {/* Контент */}
+        <div className="flex-1">
+          {activeTab === "add" && <AddAnimeForm token={token} />}
+          {activeTab === "manage" && <AnimeManager token={token} />}
+          {activeTab === "recs" && <RecommendationPanel token={token} />}
+        </div>
+      </div>
+    </div>
+  );
+}

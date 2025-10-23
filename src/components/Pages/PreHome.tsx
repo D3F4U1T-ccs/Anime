@@ -30,7 +30,6 @@ type RecItem = {
 export default function PreHome() {
   const [recs, setRecs] = useState<RecItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
@@ -38,16 +37,7 @@ export default function PreHome() {
   const POP_POSITION: "top" | "bottom" = "top";
   const INFO_BTN_POS = { right: "0.75rem", bottom: "0.75rem" };
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setIsAdmin(!!payload.isAdmin);
-    } catch {
-      setIsAdmin(false);
-    }
-  }, []);
+ 
 
   useEffect(() => {
     setLoading(true);
@@ -89,25 +79,7 @@ export default function PreHome() {
     }, delay);
   };
 
-  const handleDelete = async (recId: string) => {
-    if (!confirm("Удалить эту рекомендацию?")) return;
-    const token = localStorage.getItem("token");
-    if (!token) return alert("Нужен токен администратора");
-
-    try {
-      const res = await fetch(`http://localhost:5000/api/recommendations/${recId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || `Ошибка ${res.status}`);
-      setRecs((prev) => prev.filter((r) => r._id !== recId));
-      alert("✅ Рекомендация удалена");
-    } catch (err: any) {
-      console.error(err);
-      alert("Ошибка при удалении: " + (err.message || err));
-    }
-  };
+ 
 
   if (loading) {
     return (
@@ -122,8 +94,8 @@ export default function PreHome() {
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-100 dark:bg-gray-900 px-4 sm:px-8 py-10">
-      <div className="Up_part- bg-gray-100 hidden xl:flex dark:bg-gray-900 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
+    <div className="max-w-[1100px] mx-auto mt-[300px] bg-gray-200 dark:bg-gray-900 px-4 sm:px-8 py-10">
+      <div className="Up_part- bg-gray-200 hidden xl:flex dark:bg-gray-900 absolute w-[1100px] -ml-[32px] -mt-[100px] h-[60px] rounded-t-[100%]" />
       <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-8 text-center">🎯 Рекомендуем посмотреть</h2>
 
       {recs.length === 0 ? (
@@ -143,18 +115,7 @@ export default function PreHome() {
                 className="cursor-pointer flex flex-col items-center group relative"
                 onClick={() => navigate(`/anime/${anime.slug ?? anime._id ?? r._id}`)}
               >
-                {/* admin delete */}
-                {isAdmin && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(r._id);
-                    }}
-                    className="absolute top-2 right-2 z-20 bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md shadow transition"
-                  >
-                    ✕ Удалить
-                  </button>
-                )}
+             
 
                 <div className="relative z-10 w-[215px] h-[215px] rounded-full overflow-hidden">
                   <img
