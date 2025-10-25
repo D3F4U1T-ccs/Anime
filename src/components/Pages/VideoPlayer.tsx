@@ -19,6 +19,15 @@ interface VideoPlayerProps {
   endingEnd?: string;
   onSkipEnding: () => void;
   hasNextEpisode: boolean;
+
+  animeSlug?: string;
+  animeTitle?: string;
+  thumbnail?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+
+  resumeTime?: number;
+  resumePaused?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -42,6 +51,46 @@ function convertTimeToSeconds(timeStr?: string): number | null {
   return null;
 }
 
+/* localStorage helpers */
+const STORAGE_KEY = "recentlyWatched_v1";
+type RecentlyWatchedItem = {
+  id: string;
+  animeSlug?: string;
+  animeTitle?: string;
+  thumbnail?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  episodeUrl?: string;
+  currentTime: number;
+  duration: number;
+  updatedAt: number;
+};
+
+function readRecentlyWatched(): RecentlyWatchedItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as RecentlyWatchedItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentlyWatched(list: RecentlyWatchedItem[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch { }
+}
+
+function addOrUpdateRecentlyWatched(item: RecentlyWatchedItem, cap = 8) {
+  const list = readRecentlyWatched();
+  const filtered = list.filter((i) => i.id !== item.id);
+  filtered.unshift(item);
+  const sliced = filtered.slice(0, cap);
+  writeRecentlyWatched(sliced);
+}
+
+/* Component */
 export default function VideoPlayer({
   episodeUrl,
   openingStart,
@@ -50,6 +99,15 @@ export default function VideoPlayer({
   endingEnd,
   onSkipEnding,
   hasNextEpisode,
+
+  animeSlug,
+  animeTitle,
+  thumbnail,
+  seasonNumber,
+  episodeNumber,
+
+  resumeTime,
+  resumePaused,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -74,11 +132,9 @@ export default function VideoPlayer({
   const [playbackRate, setPlaybackRate] = useState(1);
 
   const [qualities, setQualities] = useState<number[]>([]);
-  const [currentQuality, setCurrentQuality] = useState<number | "auto" | null>(
-    "auto"
-  );
+  const [currentQuality, setCurrentQuality] = useState<number | "auto" | null>("auto");
 
-  // Skip UI state (controls visibility)
+  // Skip UI state
   const [showOpeningSkip, setShowOpeningSkip] = useState(false);
   const [showEndingSkip, setShowEndingSkip] = useState(false);
   const [hasSkippedOpening, setHasSkippedOpening] = useState(false);
@@ -91,6 +147,10 @@ export default function VideoPlayer({
   const hideTimeout = useRef<number | null>(null);
   const tooltipTimeout = useRef<number | null>(null);
   const pendingSeekRef = useRef<number | null>(null); // если metadata ещё не пришёл
+  const resumeShouldPauseRef = useRef<boolean>(false);
+  const lastSavedAtRef = useRef<number>(0);
+  const seekRetryRef = useRef<number | null>(null);
+  const savedNextRef = useRef<boolean>(false); // флаг: уже записали следующую серию
 
   // seconds
   const openingStartSec = convertTimeToSeconds(openingStart);
@@ -107,29 +167,47 @@ export default function VideoPlayer({
     endingEndSec !== null &&
     endingStartSec < endingEndSec;
 
+  const buildId = (s?: number, e?: number) => {
+    const sNum = s ?? seasonNumber;
+    const eNum = e ?? episodeNumber;
+    if (!animeSlug || sNum == null || eNum == null) return null;
+    return `${animeSlug}|s${sNum}|e${eNum}`;
+  };
+
   // -----------------------
-  // Init HLS (don't re-create on skip state changes)
+  // Init HLS
   // -----------------------
   useEffect(() => {
     if (!episodeUrl || !videoRef.current) return;
     const video = videoRef.current;
 
-    // destroy previous hls if different source
+    // decide initial seek: resumeTime prop > storage value (if any)
+    let initialSeek: number | null = null;
+    if (resumeTime !== undefined && resumeTime !== null) {
+      initialSeek = resumeTime;
+      if (resumePaused) resumeShouldPauseRef.current = true;
+    } else {
+      const id = buildId();
+      if (id) {
+        const stored = readRecentlyWatched().find((i) => i.id === id);
+        if (stored && typeof stored.currentTime === "number" && stored.currentTime > 0) {
+          initialSeek = stored.currentTime;
+        }
+      }
+    }
+    if (initialSeek !== null) pendingSeekRef.current = initialSeek;
+
+    // destroy previous
     if (hlsRef.current) {
       try {
         hlsRef.current.destroy();
-      } catch {}
+      } catch { }
       hlsRef.current = null;
     }
 
-    // proxied URL (по вашему серверу-прокси)
-    const proxiedUrl = `http://localhost:5000/proxy?url=${encodeURIComponent(
-      episodeUrl
-    )}`;
+    const proxiedUrl = `http://localhost:5000/proxy?url=${encodeURIComponent(episodeUrl)}`;
 
-    const hls = new Hls({
-      backBufferLength: Infinity,
-    });
+    const hls = new Hls({ backBufferLength: Infinity });
     hlsRef.current = hls;
 
     const onManifest = (_event: unknown, data: any) => {
@@ -163,11 +241,15 @@ export default function VideoPlayer({
       setDuration(video.duration);
       setCurrentTime(video.currentTime);
 
+      const now = Date.now();
+      if (now - lastSavedAtRef.current > 5000) {
+        lastSavedAtRef.current = now;
+        saveProgressToStorage(video.currentTime, video.duration);
+      }
+
+      // show opening/ending skip UI as before
       if (hasOpening && !hasSkippedOpening) {
-        if (
-          video.currentTime >= openingStartSec! &&
-          video.currentTime < openingEndSec!
-        ) {
+        if (video.currentTime >= openingStartSec! && video.currentTime < openingEndSec!) {
           setShowOpeningSkip(true);
         } else if (video.currentTime >= openingEndSec!) {
           setShowOpeningSkip(false);
@@ -180,10 +262,7 @@ export default function VideoPlayer({
       }
 
       if (hasEnding && !hasSkippedEnding) {
-        if (
-          video.currentTime >= endingStartSec! &&
-          video.currentTime < endingEndSec!
-        ) {
+        if (video.currentTime >= endingStartSec! && video.currentTime < endingEndSec!) {
           setShowEndingSkip(true);
         } else if (video.currentTime >= endingEndSec!) {
           setShowEndingSkip(false);
@@ -194,15 +273,60 @@ export default function VideoPlayer({
       } else {
         setShowEndingSkip(false);
       }
+
+      // === new: если есть следующая серия и осталось <= 60s, — записать следующую серию в storage ===
+      if (hasNextEpisode && video.duration && isFinite(video.duration) && !savedNextRef.current) {
+        const remaining = video.duration - video.currentTime;
+        if (remaining <= 60) {
+          // compute next episode number (simple +1)
+          if (episodeNumber != null && seasonNumber != null && animeSlug) {
+            const nextEp = episodeNumber + 1;
+            saveNextEpisodeToStorage(nextEp);
+            savedNextRef.current = true;
+          }
+        }
+      }
+    };
+
+    // robust seek function: tries immediately and retries until success or timeout
+    const applyPendingSeekRobust = (targetSec: number) => {
+      if (seekRetryRef.current) {
+        window.clearInterval(seekRetryRef.current);
+        seekRetryRef.current = null;
+      }
+      try {
+        video.currentTime = Math.min(video.duration || targetSec, Math.max(0, targetSec));
+      } catch { }
+      if (Math.abs((video.currentTime || 0) - targetSec) < 0.6) {
+        return;
+      }
+      let attempts = 0;
+      const maxAttempts = 12;
+      seekRetryRef.current = window.setInterval(() => {
+        attempts += 1;
+        try {
+          if (!isNaN(video.duration) && isFinite(video.duration)) {
+            video.currentTime = Math.min(video.duration, Math.max(0, targetSec));
+          } else {
+            video.currentTime = Math.max(0, targetSec);
+          }
+        } catch { }
+        const cur = video.currentTime || 0;
+        if (Math.abs(cur - targetSec) < 0.6 || attempts >= maxAttempts) {
+          if (seekRetryRef.current) {
+            window.clearInterval(seekRetryRef.current);
+            seekRetryRef.current = null;
+          }
+        }
+      }, 250) as unknown as number;
     };
 
     const onLoadedMeta = () => {
       if (pendingSeekRef.current !== null) {
         const t = pendingSeekRef.current;
         pendingSeekRef.current = null;
-        if (!isNaN(video.duration) && isFinite(video.duration)) {
-          video.currentTime = Math.min(video.duration, Math.max(0, t));
-        }
+        applyPendingSeekRobust(t);
+        if (resumePaused) resumeShouldPauseRef.current = true;
       }
       updateProgress();
     };
@@ -221,43 +345,57 @@ export default function VideoPlayer({
         hls.off(Hls.Events.MANIFEST_PARSED, onManifest);
         hls.off(Hls.Events.ERROR, onError);
         hls.destroy();
-      } catch {}
+      } catch { }
       video.removeEventListener("timeupdate", updateProgress);
       video.removeEventListener("loadedmetadata", onLoadedMeta);
+      if (seekRetryRef.current) {
+        window.clearInterval(seekRetryRef.current);
+        seekRetryRef.current = null;
+      }
       if (hlsRef.current === hls) hlsRef.current = null;
     };
-  }, [episodeUrl, openingStartSec, openingEndSec, endingStartSec, endingEndSec]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [episodeUrl, openingStartSec, openingEndSec, endingStartSec, endingEndSec, resumeTime, resumePaused]);
 
-  // -----------------------
+  // after seeked - pause if needed
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const handler = () => {
+      if (resumeShouldPauseRef.current) {
+        video.pause();
+        setIsPlaying(false);
+        resumeShouldPauseRef.current = false;
+      }
+    };
+    video.addEventListener("seeked", handler);
+    return () => video.removeEventListener("seeked", handler);
+  }, []);
+
   // ensure playbackRate applied
-  // -----------------------
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
 
-  // -----------------------
   // keep playing after seek if was playing
-  // -----------------------
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const handleSeeked = () => {
       if (isPlaying) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       }
     };
     video.addEventListener("seeked", handleSeeked);
     return () => video.removeEventListener("seeked", handleSeeked);
   }, [isPlaying]);
 
-  // -----------------------
   // play/pause
-  // -----------------------
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play().catch(() => {});
+      video.play().catch(() => { });
       setIsPlaying(true);
     } else {
       video.pause();
@@ -265,9 +403,7 @@ export default function VideoPlayer({
     }
   };
 
-  // -----------------------
   // volume
-  // -----------------------
   const setVideoVolume = (v: number, showTip = true) => {
     const newVol = Math.min(2, Math.max(0, +v));
     setVolume(newVol);
@@ -299,9 +435,7 @@ export default function VideoPlayer({
     else setVideoVolume(Math.max(0.05, volume), false);
   };
 
-  // -----------------------
-  // simple seek helpers
-  // -----------------------
+  // seeking helpers
   const seekTo = (seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
@@ -309,7 +443,7 @@ export default function VideoPlayer({
       pendingSeekRef.current = seconds;
       try {
         hlsRef.current?.startLoad();
-      } catch {}
+      } catch { }
       return;
     }
     video.currentTime = Math.min(video.duration, Math.max(0, seconds));
@@ -326,10 +460,8 @@ export default function VideoPlayer({
     const newTime = (parseFloat(e.target.value) / 100) * duration;
     seekTo(newTime);
     setProgress(parseFloat(e.target.value));
-    // update tooltip text/pos when user uses keyboard or clicks (onChange)
     if (progressRef.current) {
       const rect = progressRef.current.getBoundingClientRect();
-      // compute left relative to progress element
       const left = (parseFloat(e.target.value) / 100) * rect.width;
       setProgressTooltipLeft(left);
       setProgressTooltipTime(`${formatTime(newTime)} / ${formatTime(duration)}`);
@@ -337,19 +469,15 @@ export default function VideoPlayer({
     }
   };
 
-  // -----------------------
-  // Progress tooltip helpers (drag + hover)
-  // -----------------------
+  // tooltip helpers
   const updateProgressTooltipFromClientX = (clientX: number) => {
     if (!progressRef.current || !containerRef.current) return;
     const rect = progressRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
-    // x inside progress element
     let x = clientX - rect.left;
     x = Math.max(0, Math.min(rect.width, x));
     const hoverProgress = (x / rect.width) * 100;
     const hoverTime = duration > 0 ? (hoverProgress / 100) * duration : 0;
-    // left relative to container (we want tooltip positioned above the progress)
     const leftRelativeToContainer = x + rect.left - containerRect.left;
     setProgressTooltipLeft(leftRelativeToContainer);
     setProgressTooltipTime(`${formatTime(hoverTime)} / ${formatTime(duration)}`);
@@ -361,10 +489,8 @@ export default function VideoPlayer({
     setIsDraggingProgress(true);
     updateProgressTooltipFromClientX(e.clientX);
 
-    // ensure we catch pointerup even if it happens outside input
     const onWindowPointerUp = (_ev: PointerEvent) => {
       setIsDraggingProgress(false);
-      // hide tooltip shortly after finishing drag
       setTimeout(() => setShowProgressTooltip(false), 300);
       window.removeEventListener("pointerup", onWindowPointerUp);
     };
@@ -372,26 +498,20 @@ export default function VideoPlayer({
   };
 
   const handlePointerMoveOnProgress = (e: React.PointerEvent<HTMLInputElement>) => {
-    // always update tooltip position/time while moving
     updateProgressTooltipFromClientX(e.clientX);
   };
 
   const handlePointerLeaveProgress = () => {
-    // hide only when not dragging
     if (!isDraggingProgress) setShowProgressTooltip(false);
   };
 
-  // -----------------------
   // skip handlers
-  // -----------------------
   const handleSkipOpening = () => {
     const video = videoRef.current;
     if (!video || openingEndSec === null) return;
     const wasPlaying = !video.paused;
     seekTo(openingEndSec);
-    if (wasPlaying) {
-      video.play().catch(() => {});
-    }
+    if (wasPlaying) video.play().catch(() => { });
     setShowOpeningSkip(false);
     setHasSkippedOpening(true);
   };
@@ -399,22 +519,23 @@ export default function VideoPlayer({
   const handleSkipEnding = () => {
     const video = videoRef.current;
     if (hasNextEpisode) {
+      // перед навигацией — сохраним следующую серию в storage (если еще не записали)
+      if (!savedNextRef.current && episodeNumber != null) {
+        saveNextEpisodeToStorage(episodeNumber + 1);
+        savedNextRef.current = true;
+      }
       onSkipEnding();
       return;
     }
     if (!video || endingEndSec === null) return;
     const wasPlaying = !video.paused;
     seekTo(endingEndSec);
-    if (wasPlaying) {
-      video.play().catch(() => {});
-    }
+    if (wasPlaying) video.play().catch(() => { });
     setShowEndingSkip(false);
     setHasSkippedEnding(true);
   };
 
-  // -----------------------
   // quality switching
-  // -----------------------
   const changeQuality = (height: number | "auto") => {
     const hls = hlsRef.current;
     if (!hls) return;
@@ -430,9 +551,7 @@ export default function VideoPlayer({
     }
   };
 
-  // -----------------------
   // keyboard controls
-  // -----------------------
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
@@ -472,9 +591,7 @@ export default function VideoPlayer({
     return () => window.removeEventListener("keydown", handleKey);
   }, [volume, isMuted, isPlaying]);
 
-  // -----------------------
   // hide controls timer
-  // -----------------------
   useEffect(() => {
     const resetTimer = () => {
       setShowControls(true);
@@ -495,9 +612,7 @@ export default function VideoPlayer({
     };
   }, [isFullscreen]);
 
-  // -----------------------
   // double click (seek small)
-  // -----------------------
   const handleDoubleClick = (e: React.MouseEvent<HTMLVideoElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -521,6 +636,83 @@ export default function VideoPlayer({
       await document.exitFullscreen();
       setIsFullscreen(false);
     }
+  };
+
+  /* Save progress */
+  const saveProgressToStorage = (curTime: number, dur: number | null | undefined) => {
+    const id = buildId();
+    if (!id) return;
+    const videoDur =
+      dur && dur > 0 ? dur : (videoRef.current && isFinite(videoRef.current.duration) ? videoRef.current.duration : 0);
+    const safeCur = Math.max(0, Math.min(videoDur > 0 ? videoDur : Number.MAX_SAFE_INTEGER, curTime || 0));
+    const item: RecentlyWatchedItem = {
+      id,
+      animeSlug,
+      animeTitle,
+      thumbnail,
+      seasonNumber,
+      episodeNumber,
+      episodeUrl,
+      currentTime: safeCur,
+      duration: videoDur || 0,
+      updatedAt: Date.now(),
+    };
+    addOrUpdateRecentlyWatched(item, 8);
+  };
+
+  // save on unload/unmount
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      const video = videoRef.current;
+      if (!video) return;
+      saveProgressToStorage(video.currentTime, isFinite(video.duration) ? video.duration : 0);
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      const video = videoRef.current;
+      if (video) {
+        saveProgressToStorage(video.currentTime, isFinite(video.duration) ? video.duration : 0);
+      }
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animeSlug, seasonNumber, episodeNumber, animeTitle, thumbnail]);
+
+  // save on pause/ended
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onPause = () => saveProgressToStorage(video.currentTime, isFinite(video.duration) ? video.duration : 0);
+    const onEnded = () => saveProgressToStorage(video.currentTime, isFinite(video.duration) ? video.duration : 0);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
+    return () => {
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("ended", onEnded);
+    };
+  }, [animeSlug, seasonNumber, episodeNumber]);
+
+  /* Save next episode to storage (new) */
+  const saveNextEpisodeToStorage = (nextEpisodeNum: number) => {
+    if (!animeSlug || seasonNumber == null || nextEpisodeNum == null) return;
+    const videoDur = videoRef.current && isFinite(videoRef.current.duration) ? videoRef.current.duration : 0;
+    // Desired start time for next episode — попробуем взять endingStart (текущий) или fallback duration-10
+    const endingStartForSave = endingStartSec ?? Math.max(0, (videoDur > 0 ? videoDur - 10 : 0));
+    const nextId = buildId(seasonNumber, nextEpisodeNum);
+    if (!nextId) return;
+    const item: RecentlyWatchedItem = {
+      id: nextId,
+      animeSlug,
+      animeTitle,
+      thumbnail,
+      seasonNumber,
+      episodeNumber: nextEpisodeNum,
+      episodeUrl: undefined,
+      currentTime: Math.max(0, endingStartForSave || 0),
+      duration: 0, // unknown for next episode, will update later when user opens it
+      updatedAt: Date.now(),
+    };
+    addOrUpdateRecentlyWatched(item, 8);
   };
 
   return (
@@ -548,7 +740,7 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Progress tooltip (показывается над прогрессом) */}
+      {/* Progress tooltip */}
       {showProgressTooltip && progressTooltipLeft !== null && (
         <div
           style={{ left: progressTooltipLeft }}
@@ -577,7 +769,7 @@ export default function VideoPlayer({
       )}
 
       <div
-        className={`absolute bottom-0 left-0 w-full px-4 pb-3 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`absolute bottom-0 left-0 w-full px-3 pb-2 sm:px-4 sm:pb-3 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
       >
         <div className="relative">
@@ -592,13 +784,11 @@ export default function VideoPlayer({
             onPointerDown={handlePointerDownOnProgress}
             onPointerMove={handlePointerMoveOnProgress}
             onPointerUp={() => {
-              // hide tooltip only if not hovering
               setTimeout(() => {
                 if (!isDraggingProgress) setShowProgressTooltip(false);
               }, 300);
             }}
             onMouseMove={(e) => {
-              // hover without dragging
               if (!isDraggingProgress) {
                 updateProgressTooltipFromClientX(e.clientX);
               }
@@ -608,10 +798,12 @@ export default function VideoPlayer({
           />
         </div>
 
-        <div className="flex items-center justify-between text-white mt-2">
-          <div className="flex items-center gap-3">
+        {/* === Контролы адаптивные === */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between text-white mt-2 gap-2 sm:gap-3">
+          {/* Левая часть */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
             <button onClick={togglePlay} className="p-2 hover:text-white/80 transition">
-              {isPlaying ? <Pause size={22} /> : <Play size={22} />}
+              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
             </button>
 
             <button onClick={toggleMute} className="p-2 hover:text-white/80 transition">
@@ -626,12 +818,13 @@ export default function VideoPlayer({
               step="0.05"
               value={isMuted ? 0 : volume}
               onChange={(e) => setVideoVolume(parseFloat(e.target.value))}
-              className="w-28 accent-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]"
+              className="w-20 sm:w-28 accent-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]"
             />
           </div>
 
-          <div className="flex items-center gap-3 relative">
-            <span className="text-sm text-gray-300">
+          {/* Правая часть */}
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 text-sm">
+            <span className="text-xs sm:text-sm text-gray-300 whitespace-nowrap">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
 
@@ -640,11 +833,11 @@ export default function VideoPlayer({
                 onClick={() => setShowSettings((s) => !s)}
                 className="p-2 hover:text-white/80 transition"
               >
-                <Settings size={20} />
+                <Settings size={18} />
               </button>
 
               {showSettings && (
-                <div className="absolute bottom-10 right-0 bg-black/90 text-white rounded-lg p-3 w-44 text-sm space-y-2 z-50 shadow-lg">
+                <div className="absolute bottom-10 right-0 bg-black/90 text-white rounded-lg p-3 w-40 text-sm space-y-2 z-50 shadow-lg">
                   <div>
                     <p className="text-gray-400 mb-1">Скорость</p>
                     {[0.5, 1, 1.25, 1.5, 2].map((r) => (
@@ -684,11 +877,12 @@ export default function VideoPlayer({
             </div>
 
             <button onClick={toggleFullscreen} className="p-2 hover:text-white/80 transition">
-              <Maximize size={20} />
+              <Maximize size={18} />
             </button>
           </div>
         </div>
       </div>
+
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // src/pages/OpeningPage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 
 type Episode = {
@@ -65,8 +65,6 @@ export default function OpeningPage(): JSX.Element {
     setLoading(true);
     setError(null);
 
-    // <-- ВАЖНОЕ изменение: берём полные данные из /api/anime/:slug,
-    // потому что /api/openings/:slug специально удаляет поля opening*.
     fetch(`/api/anime/${encodeURIComponent(slug)}`)
       .then(async (res) => {
         const ct = res.headers.get("content-type") || "";
@@ -92,54 +90,93 @@ export default function OpeningPage(): JSX.Element {
       });
   }, [slug]);
 
+  const totals = useMemo(() => {
+    if (!anime || !Array.isArray(anime.seasons)) return { seasons: 0, episodes: 0, openings: 0, endings: 0, opCoverage: 0 };
+    let sCount = 0;
+    let eCount = 0;
+    let opCount = 0;
+    let edCount = 0;
+
+    for (const s of anime.seasons) {
+      if (!s) continue;
+      sCount++;
+      const eps = Array.isArray(s.episodes) ? s.episodes : [];
+      eCount += eps.length;
+      for (const ep of eps) {
+        const hasOpening = (ep?.openingStart && String(ep.openingStart).trim() !== "") || (ep?.openingEnd && String(ep.openingEnd).trim() !== "");
+        const hasEnding = (ep?.endingStart && String(ep.endingStart).trim() !== "") || (ep?.endingEnd && String(ep.endingEnd).trim() !== "");
+        if (hasOpening) opCount++;
+        if (hasEnding) edCount++;
+      }
+    }
+
+    const opCoverage = eCount > 0 ? Math.round((opCount / eCount) * 100) : 0;
+    return { seasons: sCount, episodes: eCount, openings: opCount, endings: edCount, opCoverage };
+  }, [anime]);
+
   if (loading) return <div className="p-6 mt-20">Загрузка...</div>;
   if (error) return <div className="p-6 mt-20 text-red-500">Ошибка: {error}</div>;
   if (!anime) return <div className="p-6 mt-20">Аниме не найдено.</div>;
 
-  const totalSeasons = Array.isArray(anime.seasons) ? anime.seasons.length : 0;
-  const totalEpisodes = Array.isArray(anime.seasons)
-    ? anime.seasons.reduce((sum, s) => sum + (Array.isArray(s.episodes) ? s.episodes.length : 0), 0)
-    : 0;
-
   const thumbnail = anime.thumbnail ?? "/placeholder-thumb.jpg";
 
   return (
-    <div className="max-w-5xl mt-[100px] mx-auto p-6">
-      <div className="flex items-start gap-6 mb-6">
-        <img
-          src={thumbnail}
-          alt={anime.nameRu || anime.nameEn || anime.slug}
-          className="w-[300px] h-[300px] object-cover rounded-lg shadow-md flex-shrink-0"
-        />
-        <div>
-          <h1 className="text-3xl font-bold mb-2">
-            {anime.nameRu}
-            {anime.nameEn ? <span className="text-lg font-normal text-gray-400 ml-3">({anime.nameEn})</span> : null}
-          </h1>
-          {anime.description && <p className="mb-3 text-gray-600 max-w-[720px]">{anime.description}</p>}
+    <div className="max-w-5xl mt-[80px] mx-auto p-4 sm:p-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 mb-6">
+        <div className="flex-shrink-0">
+          <img
+            src={thumbnail}
+            alt={anime.nameRu || anime.nameEn || anime.slug}
+            className="w-32 h-32 sm:w-48 sm:h-48 md:w-72 md:h-72 object-cover rounded-lg shadow-md"
+            style={{ aspectRatio: "1/1" }}
+          />
+        </div>
 
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <div>
-              Сезонов: <span className="font-medium text-gray-800 dark:text-gray-200 ml-1">{totalSeasons}</span>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2 truncate">
+            {anime.nameRu}
+            {anime.nameEn ? <span className="text-base font-normal text-gray-500 ml-2">({anime.nameEn})</span> : null}
+          </h1>
+
+          {anime.description && <p className="mb-3 text-sm text-gray-600 dark:text-gray-300 max-w-prose">{anime.description}</p>}
+
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+            <div className="inline-flex items-center gap-2 bg-gray-100 dark:bg-neutral-800 px-3 py-1 rounded">
+              <strong className="font-semibold mr-1">{totals.seasons}</strong> сезонов
             </div>
-            <div>
-              Эпизодов: <span className="font-medium text-gray-800 dark:text-gray-200 ml-1">{totalEpisodes}</span>
+
+            <div className="inline-flex items-center gap-2 bg-gray-100 dark:bg-neutral-800 px-3 py-1 rounded">
+              <strong className="font-semibold mr-1">{totals.episodes}</strong> серий
+            </div>
+
+            <div className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded">
+              <strong className="font-semibold text-indigo-700 dark:text-indigo-200 mr-1">{totals.openings}</strong> OP
+            </div>
+
+            <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/30 px-3 py-1 rounded">
+              <strong className="font-semibold text-green-700 dark:text-green-200 mr-1">{totals.endings}</strong> ED
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-gray-100 dark:bg-neutral-800">
+              OP coverage: <strong className="ml-1">{totals.opCoverage}%</strong>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Seasons & episodes */}
       <div className="space-y-6">
         {Array.isArray(anime.seasons) && anime.seasons.length > 0 ? (
           anime.seasons.map((season) => (
-            <section key={season.seasonNumber} className="bg-white dark:bg-gray-900 rounded-lg p-4 shadow">
-              <div className="flex items-center justify-between mb-4">
+            <section key={season.seasonNumber} className="bg-white dark:bg-gray-900 rounded-lg p-3 sm:p-4 shadow">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <div className="text-xl font-semibold">Сезон {season.seasonNumber}</div>
+                  <div className="text-lg font-semibold">Сезон {season.seasonNumber}</div>
                   <div className="text-sm text-gray-500">{season.episodes?.length ?? 0} эпизодов</div>
                 </div>
 
-                <div className="text-sm text-gray-400">
+                <div className="text-sm">
                   {season.episodes && season.episodes.length > 0 ? (
                     <Link
                       to={`/Openings/${encodeURIComponent(anime.slug)}/season/${season.seasonNumber}/episode/${season.episodes[0].number}`}
@@ -161,20 +198,26 @@ export default function OpeningPage(): JSX.Element {
                     const opLen = opStart !== null && opEnd !== null ? opEnd - opStart : null;
                     const edLen = edStart !== null && edEnd !== null ? edEnd - edStart : null;
 
+                    const hasOpening =
+                      (ep.openingStart && String(ep.openingStart).trim() !== "") ||
+                      (ep.openingEnd && String(ep.openingEnd).trim() !== "");
+                    const hasEnding =
+                      (ep.endingStart && String(ep.endingStart).trim() !== "") ||
+                      (ep.endingEnd && String(ep.endingEnd).trim() !== "");
+
                     return (
                       <Link
                         key={ep.number}
                         to={`/Openings/${encodeURIComponent(anime.slug)}/season/${season.seasonNumber}/episode/${ep.number}`}
-                        className="w-full flex items-center gap-4 p-3 border rounded-lg hover:shadow-md transition"
+                        className="w-full flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg hover:shadow-md transition min-w-0"
                         aria-label={`Открыть серию ${ep.number}`}
                       >
                         {/* Left: thumbnail + title */}
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={thumbnail}
-                            alt={`thumb ep ${ep.number}`}
-                            className="w-20 h-20 object-cover rounded-full flex-shrink-0"
-                          />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 dark:bg-neutral-800">
+                            <img src={thumbnail} alt={`thumb ep ${ep.number}`} className="w-full h-full object-cover" />
+                          </div>
+
                           <div className="min-w-0">
                             <div className="font-medium truncate">
                               Серия {ep.number}
@@ -184,37 +227,40 @@ export default function OpeningPage(): JSX.Element {
                           </div>
                         </div>
 
-                        {/* Middle: OP/ED badges */}
-                        <div className="ml-4 flex-1 flex flex-wrap gap-2 items-center">
-                          {opLen !== null ? (
-                            <div className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-sm">
-                              OP {formatTime(opLen)} ({ep.openingStart} → {ep.openingEnd})
-                            </div>
-                          ) : (ep.openingStart !== undefined && ep.openingStart !== null && String(ep.openingStart).trim() !== "") || (ep.openingEnd !== undefined && ep.openingEnd !== null && String(ep.openingEnd).trim() !== "") ? (
-                            <div className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-sm">
-                              OP: {ep.openingStart ?? ep.openingEnd}
-                            </div>
+                        {/* Middle: OP/ED badges (теперь адаптивные) */}
+                        <div className="flex flex-wrap gap-2 items-start ml-2 sm:flex-1 sm:items-center min-w-0">
+                          {hasOpening ? (
+                            opLen !== null ? (
+                              <div className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-sm break-words max-w-full">
+                                OP {formatTime(opLen)} ({String(ep.openingStart)} → {String(ep.openingEnd)})
+                              </div>
+                            ) : (
+                              <div className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-sm break-words max-w-full">
+                                OP: {String(ep.openingStart ?? ep.openingEnd)}
+                              </div>
+                            )
                           ) : (
-                            <div className="px-2 py-1 bg-gray-50 text-gray-500 rounded text-sm">OP —</div>
+                            <div className="px-2 py-1 bg-gray-50 text-gray-400 rounded text-sm">OP —</div>
                           )}
 
-                          {edLen !== null ? (
-                            <div className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm">
-                              ED {formatTime(edLen)} ({ep.endingStart} → {ep.endingEnd})
-                            </div>
-                          ) : (ep.endingStart !== undefined && ep.endingStart !== null && String(ep.endingStart).trim() !== "") || (ep.endingEnd !== undefined && ep.endingEnd !== null && String(ep.endingEnd).trim() !== "") ? (
-                            <div className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm">
-                              ED: {ep.endingStart ?? ep.endingEnd}
-                            </div>
+                          {hasEnding ? (
+                            edLen !== null ? (
+                              <div className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm break-words max-w-full">
+                                ED {formatTime(edLen)} ({String(ep.endingStart)} → {String(ep.endingEnd)})
+                              </div>
+                            ) : (
+                              <div className="px-2 py-1 bg-green-50 text-green-700 rounded text-sm break-words max-w-full">
+                                ED: {String(ep.endingStart ?? ep.endingEnd)}
+                              </div>
+                            )
                           ) : (
-                            <div className="px-2 py-1 bg-gray-50 text-gray-500 rounded text-sm">ED —</div>
+                            <div className="px-2 py-1 bg-gray-50 text-gray-400 rounded text-sm">ED —</div>
                           )}
                         </div>
 
-                        {/* Right: meta area */}
-                        <div className="ml-auto flex items-center gap-3">
-                          <div className="text-sm text-gray-400">Сезон {season.seasonNumber}</div>
-                          <div className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700">Эп. {ep.number}</div>
+                        {/* Right: meta */}
+                        <div className="text-xs text-gray-400 self-end sm:self-center sm:ml-auto shrink-0">
+                          Сезон {season.seasonNumber} · <span className="px-2 py-1 bg-gray-100 rounded">Эп. {ep.number}</span>
                         </div>
                       </Link>
                     );
@@ -222,6 +268,7 @@ export default function OpeningPage(): JSX.Element {
                 ) : (
                   <div className="text-gray-500">Эпизоды не найдены</div>
                 )}
+
               </div>
             </section>
           ))

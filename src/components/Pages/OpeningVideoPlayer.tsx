@@ -380,40 +380,97 @@ export default function OpeningVideoPlayer({
   };
 
   return (
-    <div ref={containerRef} className={`relative bg-black rounded-xl overflow-hidden shadow-lg transition-all duration-300 ${isFullscreen ? "w-screen h-screen" : "w-full max-w-3xl aspect-video"}`}>
-      <video ref={videoRef} playsInline className="absolute top-0 left-0 w-full h-full object-contain cursor-pointer" onClick={togglePlay} onDoubleClick={handleDoubleClick} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+    <div
+      ref={containerRef}
+      className={`relative bg-black rounded-xl overflow-hidden shadow-lg transition-all duration-300 max-w-full ${isFullscreen ? "w-screen h-screen" : "w-full sm:max-w-3xl aspect-video"}`}
+    >
+      <video
+        ref={videoRef}
+        playsInline
+        className="absolute top-0 left-0 w-full h-full object-contain cursor-pointer"
+        onClick={togglePlay}
+        onDoubleClick={handleDoubleClick}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
 
       {/* volume tooltip */}
       {showVolumeTooltip && volumeTooltipLeft !== null && (
-        <div style={{ left: volumeTooltipLeft }} className="absolute bottom-20 transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none">{Math.round(volume * 100)}%</div>
+        <div
+          style={{ left: volumeTooltipLeft }}
+          className="absolute bottom-20 transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none max-w-[85%] sm:max-w-[40%] truncate"
+        >
+          {Math.round(volume * 100)}%
+        </div>
       )}
 
       {/* progress tooltip */}
       {showProgressTooltip && progressTooltipLeft !== null && (
-        <div style={{ left: progressTooltipLeft }} className="absolute bottom-[85px] transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none z-50">{progressTooltipTime}</div>
+        <div
+          style={{ left: progressTooltipLeft }}
+          className="absolute bottom-[85px] transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 text-sm rounded shadow-md pointer-events-none z-50 max-w-[85%] sm:max-w-[40%] truncate"
+        >
+          {progressTooltipTime}
+        </div>
       )}
 
       {/* controls overlay */}
-      <div className={`absolute bottom-0 left-0 w-full px-4 pb-3 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+      <div className={`absolute bottom-0 left-0 w-full px-3 sm:px-4 pb-3 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <div className="relative">
-          <input ref={progressRef} type="range" min={0} max={100} step={0.1} value={progressPct} onChange={(e) => handleSeekPct(Number(e.target.value))} onPointerDown={handlePointerDownOnProgress} onPointerMove={handlePointerMoveOnProgress} onPointerUp={() => { setTimeout(() => { if (!isDraggingProgress) setShowProgressTooltip(false); }, 300); }} onMouseMove={(e) => { if (!isDraggingProgress) updateProgressTooltipFromClientX(e.clientX); }} onMouseLeave={handlePointerLeaveProgress} className="w-full accent-white cursor-pointer drop-shadow-[0_0_30px_rgba(255,255,255,0.6)]" />
+          <input
+            ref={progressRef}
+            type="range"
+            min={0}
+            max={100}
+            step={0.1}
+            value={progressPct}
+            onChange={(e) => handleSeekPct(Number(e.target.value))}
+            onPointerDown={handlePointerDownOnProgress}
+            onPointerMove={handlePointerMoveOnProgress}
+            onPointerUp={() => { setTimeout(() => { if (!isDraggingProgress) setShowProgressTooltip(false); }, 300); }}
+            onMouseMove={(e) => { if (!isDraggingProgress) updateProgressTooltipFromClientX(e.clientX); }}
+            onMouseLeave={handlePointerLeaveProgress}
+            className="w-full accent-white cursor-pointer drop-shadow-[0_0_30px_rgba(255,255,255,0.6)] h-2 sm:h-1"
+          />
         </div>
 
-        <div className="flex items-center justify-between text-white mt-2">
-          <div className="flex items-center gap-3">
-            <button onClick={togglePlay} className="p-2 hover:text-white/80 transition">{isPlaying ? <Pause size={22} /> : <Play size={22} />}</button>
-            <button onClick={() => toggleMute()} className="p-2 hover:text-white/80 transition">{renderVolumeIcon()}</button>
+        {/* Controls: mobile-first: stack on small screens, row on sm+ */}
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between text-white mt-2 gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-3">
+              <button onClick={togglePlay} className="p-3 sm:p-2 hover:text-white/80 transition rounded-lg touch-none">
+                {isPlaying ? <Pause size={22} /> : <Play size={22} />}
+              </button>
 
-            <input ref={volumeRef} type="range" min={0} max={1} step={0.01} value={muted ? 0 : volume} onChange={(e) => setVideoVolume(parseFloat(e.target.value))} className="w-28 accent-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]" />
+              <button onClick={() => toggleMute()} className="p-3 sm:p-2 hover:text-white/80 transition rounded-lg touch-none">
+                {renderVolumeIcon()}
+              </button>
+
+              <input
+                ref={volumeRef}
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={muted ? 0 : volume}
+                onChange={(e) => setVideoVolume(parseFloat(e.target.value))}
+                className="w-36 sm:w-28 accent-white drop-shadow-[0_0_30px_rgba(255,255,255,0.7)]"
+              />
+            </div>
+
+            {/* on mobile show current time on the right side of this row, on desktop it's in the right cluster */}
+            <div className="hidden sm:block" />
           </div>
 
-          <div className="flex items-center gap-3 relative">
-            <span className="text-sm text-gray-300">{formatTime(Math.max(0, currentTime - (curStart ?? 0)))} / {formatTime(curSegLen)}</span>
+          <div className="flex items-center gap-3 relative mt-0 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="text-sm text-gray-300 mr-2 sm:mr-0">{formatTime(Math.max(0, currentTime - (curStart ?? 0)))} / {formatTime(curSegLen)}</span>
 
             <div className="relative">
-              <button onClick={() => setShowSettings((s) => !s)} className="p-2 hover:text-white/80 transition"><Settings size={20} /></button>
+              <button onClick={() => setShowSettings((s) => !s)} className="p-3 sm:p-2 hover:text-white/80 transition rounded-lg touch-none">
+                <Settings size={20} />
+              </button>
               {showSettings && (
-                <div className="absolute bottom-10 right-0 bg-black/90 text-white rounded-lg p-3 w-44 text-sm space-y-2 z-50 shadow-lg">
+                <div className="absolute sm:bottom-10 bottom-16 sm:right-0 right-3 left-3 sm:left-auto bg-black/90 text-white rounded-lg p-3 sm:w-44 w-auto text-sm space-y-2 z-50 shadow-lg max-h-[50vh] overflow-auto">
                   <div>
                     <p className="text-gray-400 mb-1">Скорость</p>
                     {[0.5, 1, 1.25, 1.5, 2].map((r) => (
@@ -431,7 +488,9 @@ export default function OpeningVideoPlayer({
               )}
             </div>
 
-            <button onClick={toggleFullscreen} className="p-2 hover:text-white/80 transition"><Maximize size={20} /></button>
+            <button onClick={toggleFullscreen} className="p-3 sm:p-2 hover:text-white/80 transition rounded-lg touch-none">
+              <Maximize size={20} />
+            </button>
           </div>
         </div>
       </div>
@@ -444,8 +503,8 @@ export default function OpeningVideoPlayer({
 
       {/* top-right quick actions (hidden with controls) */}
       <div className={`absolute top-3 right-3 flex gap-2 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-        <button onClick={() => { if (curStart !== null) { try { (videoRef.current as HTMLVideoElement).currentTime = curStart; } catch {} (videoRef.current as HTMLVideoElement).play().catch(() => {}); setMode(mode); setIsPlaying(true); } }} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">Play {mode === "opening" ? "Opening" : "Ending"}</button>
-        <button onClick={toggleModeButton} className="px-3 py-1 rounded bg-gray-700 text-white text-sm">{mode === "opening" ? "Показать Ending" : "Показать Opening"}</button>
+        <button onClick={() => { if (curStart !== null) { try { (videoRef.current as HTMLVideoElement).currentTime = curStart; } catch {} (videoRef.current as HTMLVideoElement).play().catch(() => {}); setMode(mode); setIsPlaying(true); } }} className="px-3 py-2 sm:px-3 sm:py-1 rounded bg-blue-600 text-white text-sm">Play {mode === "opening" ? "Opening" : "Ending"}</button>
+        <button onClick={toggleModeButton} className="px-3 py-2 sm:px-3 sm:py-1 rounded bg-gray-700 text-white text-sm">{mode === "opening" ? "Показать Ending" : "Показать Opening"}</button>
       </div>
 
       {/* small center status */}

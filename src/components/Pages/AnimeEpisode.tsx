@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import VideoPlayer from "./VideoPlayer";
 
 interface Episode {
@@ -41,6 +41,12 @@ export default function AnimeEpisode() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const params = new URLSearchParams(location.search);
+  const tParam = params.get("t");
+  const resumeTime = tParam ? Number(tParam) : undefined;
+  const resumePaused = params.get("paused") === "1" || params.get("paused") === "true";
 
   useEffect(() => {
     let isMounted = true;
@@ -117,120 +123,116 @@ export default function AnimeEpisode() {
       : null;
 
   const handleSkipEnding = () => {
-    if (nextEpisode) {
-      navigate(nextEpisode);
-    } else {
-      // Если нет next, seek сделает плеер сам
-    }
+    if (nextEpisode) navigate(nextEpisode);
   };
 
   return (
     <div className="mt-[80px] md:mt-[100px] w-full flex justify-center">
-      <div className="w-full md:max-w-5xl md:px-4 px-0">
-        <div className="bg-neutral-900/90 rounded-none md:rounded-2xl p-3 md:p-6 shadow-lg">
-          {/* 🔹 Обложка и заголовок */}
-          {/* ---- Новый хедер: обложка слева + центрированный заголовок ---- */}
-          <div className="w-full bg-neutral-800/60 border border-neutral-700 rounded-md p-4 flex items-center gap-4">
-            {/* Левый блок — круглая обложка */}
-            <div className="flex-shrink-0 relative">
-              <img
-                src={anime.thumbnail}
-                alt={anime.nameRu}
-                className="w-[96px] h-[96px] md:w-[140px] md:h-[140px] rounded-full object-cover shadow-lg border-2 border-neutral-700"
-              />
-              {/* Если нужен небольшой тег (например возраст/ранг) — добавь тут, иначе удаляй */}
-              {/* <div className="absolute -top-2 -left-2 bg-red-600 text-xs text-white px-2 py-0.5 rounded">18+</div> */}
-            </div>
+      <div className="w-full max-w-[960px] px-3 sm:px-4 md:px-6">
+        <div className="bg-neutral-900/90 rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 shadow-lg">
 
-            {/* Центр — заголовок и инфо */}
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-lg md:text-2xl font-semibold text-white">
+          {/* === HEADER === */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 bg-neutral-800/50 border border-neutral-700 rounded-xl p-4">
+            <img
+              src={anime.thumbnail}
+              alt={anime.nameRu}
+              className="w-[100px] h-[100px] sm:w-[130px] sm:h-[130px] rounded-full object-cover border-2 border-neutral-700 shadow-md"
+            />
+
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-xl sm:text-2xl font-semibold text-white">
                 {anime.nameRu}
               </h1>
-              <p className="text-sm md:text-base text-gray-300 mt-1">
-                {/* Показываем номер и название эпизода, если есть */}
-                {episode?.title ? `Серия ${episode.number} — ${episode.title}` : `Серия ${episode?.number}`}
+              <p className="text-sm sm:text-base text-gray-300 mt-1">
+                {episode?.title
+                  ? `Серия ${episode.number} — ${episode.title}`
+                  : `Серия ${episode?.number}`}
               </p>
-
-              {/* Метаданные / теги (жанр, рейтинг, сезон) */}
-              <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 mt-3">
-                {/* пример тега */}
-                <span className="bg-neutral-700/60 text-xs text-gray-200 px-3 py-1 rounded-md shadow-sm">
+              <div className="mt-3 flex flex-wrap justify-center sm:justify-start gap-2">
+                <span className="bg-neutral-700/70 text-xs text-gray-200 px-3 py-1 rounded-md">
                   Сезон {currentSeason?.seasonNumber ?? 1}
                 </span>
-
-
               </div>
             </div>
 
-            {/* Правый блок — кнопки навигации (на небольших экранах можно скрыть/перенести) */}
-            <div className="flex flex-col items-end gap-2">
-              <div className="hidden md:flex gap-2">
-                <button
-                  onClick={() => prevEpisode && navigate(prevEpisode)}
-                  disabled={!prevEpisode}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${prevEpisode ? "bg-violet-600 hover:bg-violet-700 text-white" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
-                >
-                  ◀ Пред.
-                </button>
+            <div className="flex gap-2 mt-3 sm:mt-0">
+              <button
+                onClick={() => prevEpisode && navigate(prevEpisode)}
+                disabled={!prevEpisode}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition ${
+                  prevEpisode
+                    ? "bg-violet-600 hover:bg-violet-700 text-white"
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                ◀
+              </button>
 
-                <button
-                  onClick={() => nextEpisode && navigate(nextEpisode)}
-                  disabled={!nextEpisode}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${nextEpisode ? "bg-violet-600 hover:bg-violet-700 text-white" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
-                >
-                  След. ▶
-                </button>
-              </div>
-
-              {/* мобильный маленький лейбл */}
-              <div className="md:hidden text-xs text-gray-400">Сезон {currentSeason?.seasonNumber}</div>
+              <button
+                onClick={() => nextEpisode && navigate(nextEpisode)}
+                disabled={!nextEpisode}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition ${
+                  nextEpisode
+                    ? "bg-violet-600 hover:bg-violet-700 text-white"
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                ▶
+              </button>
             </div>
           </div>
-          {/* ---- /Новый хедер ---- */}
 
-
-          {/* 🎬 Видео */}
+          {/* === VIDEO === */}
           <div className="mt-4 w-full">
             {episodeUrl ? (
-              <VideoPlayer
-                episodeUrl={episodeUrl}
-                openingStart={episode?.openingStart}
-                openingEnd={episode?.openingEnd}
-                endingStart={episode?.endingStart}
-                endingEnd={episode?.endingEnd}
-                onSkipEnding={handleSkipEnding}
-                hasNextEpisode={!!nextEpisode}
-              />
+              <div className="rounded-lg overflow-hidden">
+                <VideoPlayer
+                  episodeUrl={episodeUrl}
+                  openingStart={episode?.openingStart}
+                  openingEnd={episode?.openingEnd}
+                  endingStart={episode?.endingStart}
+                  endingEnd={episode?.endingEnd}
+                  onSkipEnding={handleSkipEnding}
+                  hasNextEpisode={!!nextEpisode}
+                  animeSlug={slug}
+                  animeTitle={anime.nameRu}
+                  thumbnail={anime.thumbnail}
+                  seasonNumber={Number(seasonNumber)}
+                  episodeNumber={Number(episodeNumber)}
+                  resumeTime={resumeTime}
+                  resumePaused={resumePaused}
+                />
+              </div>
             ) : (
-              <p className="text-gray-400 text-center">
+              <p className="text-gray-400 text-center py-6">
                 Эпизод не найден или не имеет ссылки.
               </p>
             )}
           </div>
 
+          {/* === КНОПКИ НИЖЕ === */}
           {errorMsg && (
             <div className="mt-3 text-sm text-yellow-400 text-center">
               ⚠️ {errorMsg}
             </div>
           )}
 
-          {/* 🔘 Кнопки управления */}
-          <div className="flex justify-between items-center mt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6">
             <button
               onClick={() => prevEpisode && navigate(prevEpisode)}
               disabled={!prevEpisode}
-              className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${prevEpisode
-                ? "bg-violet-600 hover:bg-violet-700"
-                : "bg-gray-700 cursor-not-allowed"
-                }`}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white font-medium transition ${
+                prevEpisode
+                  ? "bg-violet-600 hover:bg-violet-700"
+                  : "bg-gray-700 cursor-not-allowed"
+              }`}
             >
               ◀ Предыдущая
             </button>
 
             <Link
               to={`/anime/${slug}`}
-              className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium transition-all"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium transition"
             >
               ℹ Инфо
             </Link>
@@ -238,17 +240,18 @@ export default function AnimeEpisode() {
             <button
               onClick={() => nextEpisode && navigate(nextEpisode)}
               disabled={!nextEpisode}
-              className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${nextEpisode
-                ? "bg-violet-600 hover:bg-violet-700"
-                : "bg-gray-700 cursor-not-allowed"
-                }`}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white font-medium transition ${
+                nextEpisode
+                  ? "bg-violet-600 hover:bg-violet-700"
+                  : "bg-gray-700 cursor-not-allowed"
+              }`}
             >
               Следующая ▶
             </button>
           </div>
 
-          {/* 📜 Описание */}
-          <div className="mt-8 text-gray-300 text-sm md:text-base leading-relaxed">
+          {/* === DESCRIPTION === */}
+          <div className="mt-8 text-gray-300 text-sm sm:text-base leading-relaxed text-center sm:text-left">
             {anime.description}
           </div>
         </div>
