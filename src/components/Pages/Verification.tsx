@@ -9,12 +9,6 @@ import { Separator } from "../ui/separator";
 
 const MAX_ATTEMPTS = 3;
 
-const API_BASE =
-  import.meta.env.MODE === "production"
-    ? "https://anime-1-dv13.onrender.com"
-    : "http://localhost:5000";
-
-
 const formatRemainingTime = (unlocksAt: string) => {
   const unlockDate = new Date(unlocksAt);
   const now = new Date();
@@ -46,7 +40,7 @@ const Verification: React.FC = () => {
   // проверка статуса попыток (фоново)
   const checkAttemptsStatus = async (userEmail: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/send-code`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail, checkOnly: true }),
@@ -103,7 +97,7 @@ const Verification: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/send-code`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/send-code`, {
 
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -145,7 +139,7 @@ const Verification: React.FC = () => {
     setMessage("");
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/verify-code`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/verify-code`, {
 
         method: "POST",
         headers: { "Content-Type": "application/json" },
