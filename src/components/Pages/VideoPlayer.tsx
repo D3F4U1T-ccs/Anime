@@ -206,7 +206,10 @@ export default function VideoPlayer({
     }
     // мне тут менять?
 
-   const proxiedUrl = `https://anime-1-dv13.onrender.com/${episodeUrl}`;
+    const proxiedUrl = episodeUrl.startsWith("http")
+      ? episodeUrl
+      : `https://anime-1-dv13.onrender.com/${episodeUrl}`;
+
 
 
 
