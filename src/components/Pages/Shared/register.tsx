@@ -41,7 +41,7 @@ function Register() {
     }
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/register", {
 
         method: "POST",
         headers: { "Content-Type": "application/json" },
