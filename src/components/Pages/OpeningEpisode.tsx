@@ -1,5 +1,5 @@
 // src/components/Pages/OpeningEpisode.tsx
-import  { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import OpeningVideoPlayer from "./OpeningVideoPlayer";
 
@@ -38,9 +38,12 @@ export default function OpeningEpisode(): JSX.Element {
     setLoading(true);
     setError(null);
 
-    const urlFetch = `/api/anime/${encodeURIComponent(slug)}/season-${encodeURIComponent(
-      seasonNumber
-    )}/episode-${encodeURIComponent(episodeNumber)}`;
+    const urlFetch = `${import.meta.env.MODE === "production"
+        ? "https://anime-1-dv13.onrender.com"
+        : "http://localhost:5000"
+      }/api/anime/${encodeURIComponent(slug)}/season-${encodeURIComponent(
+        seasonNumber
+      )}/episode-${encodeURIComponent(episodeNumber)}`;
 
     (async () => {
       try {

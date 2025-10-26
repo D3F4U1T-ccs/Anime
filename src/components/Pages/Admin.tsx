@@ -77,7 +77,7 @@ function RecommendationPanel({ token }: { token: string | null }) {
 
   const loadRecs = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/recommendations");
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/recommendations");
       if (!res.ok) throw new Error(`Ошибка ${res.status}`);
       const data = await res.json();
       setList(normalizeRecsResponse(Array.isArray(data) ? data : []));
@@ -98,7 +98,7 @@ function RecommendationPanel({ token }: { token: string | null }) {
     if (!/^[0-9a-fA-F]{24}$/.test(id)) return setMsgRec("Неверный формат id (ObjectId)");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/anime/${id}`);
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/anime/${id}`);
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d?.message || `Ошибка ${res.status}`);
@@ -119,7 +119,7 @@ function RecommendationPanel({ token }: { token: string | null }) {
     if (!token) return setMsgRec("Нет токена администратора");
 
     try {
-      const res = await fetch("http://localhost:5000/api/recommendations", {
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/recommendations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,7 +147,7 @@ function RecommendationPanel({ token }: { token: string | null }) {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/recommendations/${recId}`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/recommendations/${recId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -243,7 +243,7 @@ function AnimeManager({ token }: { token: string | null }) {
 
   const loadList = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/anime");
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/anime");
       if (!res.ok) throw new Error(`Ошибка ${res.status}`);
       const data = await res.json();
       const mapped = data.map((a: any) => ({
@@ -335,7 +335,7 @@ function AnimeManager({ token }: { token: string | null }) {
     setMsg("");
     try {
       const body: any = { ...selected, rating: Number(selected.rating) };
-      const res = await fetch(`http://localhost:5000/api/anime/${(selected as any)._id}`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/anime/${(selected as any)._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -357,7 +357,7 @@ function AnimeManager({ token }: { token: string | null }) {
     if (!confirm("Удалить аниме?")) return;
     if (!token) return setMsg("Нет токена администратора");
     try {
-      const res = await fetch(`http://localhost:5000/api/anime/${(selected as any)._id}`, {
+      const res = await fetch(`https://anime-1-dv13.onrender.com/api/anime/${(selected as any)._id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -635,7 +635,7 @@ function AddAnimeForm({ token }: { token: string | null }) {
 
     try {
       const submitData = { ...anime, rating: Number(anime.rating) };
-      const res = await fetch("http://localhost:5000/api/anime/add", {
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/anime/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -822,7 +822,7 @@ export default function Admin() {
       navigate("/login");
       return;
     }
-    fetch("http://localhost:5000/api/check-admin", {
+    fetch("https://anime-1-dv13.onrender.com/api/check-admin", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => { if (!res.ok) throw new Error("Нет доступа"); return res.json(); })

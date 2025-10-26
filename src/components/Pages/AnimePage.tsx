@@ -51,7 +51,7 @@ export default function AnimePage() {
     setLoading(true);
     setError("");
 
-    fetch(`http://localhost:5000/api/anime/${encodeURIComponent(slug)}`, {
+    fetch(`http://https://anime-1-dv13.onrender.com/api/anime/${encodeURIComponent(slug)}`, {
       signal: controller.signal,
     })
       .then(async (res) => {

@@ -64,8 +64,9 @@ export default function OpeningPage(): JSX.Element {
     if (!slug) return;
     setLoading(true);
     setError(null);
+// ready
+    fetch(`https://anime-1-dv13.onrender.com/api/anime/${encodeURIComponent(slug)}`)
 
-    fetch(`/api/anime/${encodeURIComponent(slug)}`)
       .then(async (res) => {
         const ct = res.headers.get("content-type") || "";
         if (!res.ok) {

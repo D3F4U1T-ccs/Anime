@@ -118,7 +118,11 @@ export default function PreHome() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("http://localhost:5000/api/recommendations")
+    fetch(`${import.meta.env.MODE === "production"
+      ? "https://anime-1-dv13.onrender.com"
+      : "http://localhost:5000"
+      }/api/recommendations`)
+
       .then((res) => res.json())
       .then((data) => {
         if (!Array.isArray(data)) {

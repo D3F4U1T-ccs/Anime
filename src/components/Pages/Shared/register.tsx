@@ -41,7 +41,8 @@ function Register() {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/register", {
+      const res = await fetch("/api/register", {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,7 +90,7 @@ function Register() {
             </h1>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Присоединяйтесь и начните{" "}
-              <span className="text-violet-600">своё аниме-путешествие</span> 
+              <span className="text-violet-600">своё аниме-путешествие</span>
             </p>
           </CardHeader>
 

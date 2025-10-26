@@ -20,9 +20,9 @@ function Login() {
     e.preventDefault();
     setMsg("");
     setShowVerificationModal(false);
-
+// ready
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -94,7 +94,7 @@ function Login() {
             </h1>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               С возвращением!{" "}
-              <span className="text-violet-600">Продолжи</span> своё аниме-путешествие 
+              <span className="text-violet-600">Продолжи</span> своё аниме-путешествие
             </p>
           </CardHeader>
 

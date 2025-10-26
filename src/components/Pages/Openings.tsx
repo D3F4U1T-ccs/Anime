@@ -45,7 +45,11 @@ export default function Openings(): JSX.Element {
     setLoading(true);
     setError(null);
 
-    fetch("/api/anime")
+    fetch(`${import.meta.env.MODE === "production"
+      ? "https://anime-1-dv13.onrender.com"
+      : "http://localhost:5000"
+      }/api/anime`)
+
       .then(async (res) => {
         const ct = res.headers.get("content-type") || "";
         if (!res.ok) {

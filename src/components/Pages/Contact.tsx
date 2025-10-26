@@ -1,17 +1,9 @@
 
+
 function Contact() {
-    return (
-        <div>
-dwefgrthy1
-      <div>
-dwefgrthy
-        </div>      <div>
-dwefgrthy
-        </div>      <div>
-dwefgrthy
-        </div>
-        </div>
-    )
+  return (
+    <div>Contact</div>
+  )
 }
 
 export default Contact
