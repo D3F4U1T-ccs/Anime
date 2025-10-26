@@ -114,7 +114,7 @@ function Home() {
     setLoadingMore(true);
     try {
       // try API with limit/offset params (server may accept or ignore)
-      const url = `http://localhost:5000/api/anime?limit=${PAGE_SIZE}&offset=${offset}`;
+      const url = `https://anime-1-dv13.onrender.com/api/anime?limit=${PAGE_SIZE}&offset=${offset}`;
       const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
