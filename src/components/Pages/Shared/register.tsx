@@ -64,7 +64,7 @@ function Register() {
 
       setSuccess("✅ Письмо для подтверждения отправлено на вашу почту.");
       localStorage.setItem("pendingEmail", email.trim().toLowerCase());
-      setTimeout(() => navigate("/verification"), 1500);
+      setTimeout(() => navigate("/Verification"), 1500);
     } catch (err) {
       console.error(err);
       setError("🚫 Ошибка соединения с сервером");

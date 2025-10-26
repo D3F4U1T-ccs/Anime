@@ -11,7 +11,7 @@ function ProtectedAdminRoute({ children }: { children: JSX.Element }) {
       return;
     }
 
-    fetch("http://localhost:5000/api/check-admin", {
+    fetch("https://anime-1-dv13.onrender.com/api/check-admin", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => setIsAllowed(res.ok))
