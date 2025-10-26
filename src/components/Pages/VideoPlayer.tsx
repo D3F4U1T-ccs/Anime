@@ -205,7 +205,7 @@ export default function VideoPlayer({
       hlsRef.current = null;
     }
 
-    const proxiedUrl = `http://localhost:5000/proxy?url=${encodeURIComponent(episodeUrl)}`;
+    const proxiedUrl = `https://anime-1-dv13.onrender.com${encodeURIComponent(episodeUrl)}`;
 
     const hls = new Hls({ backBufferLength: Infinity });
     hlsRef.current = hls;
