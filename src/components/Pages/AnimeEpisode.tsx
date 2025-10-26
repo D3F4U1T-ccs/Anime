@@ -56,7 +56,7 @@ export default function AnimeEpisode() {
     (async () => {
       try {
         const res = await fetch(
-          `http://https://anime-1-dv13.onrender.com/api/anime/${slug}/season-${seasonNumber}/episode-${episodeNumber}`
+          `https://anime-1-dv13.onrender.com/api/anime/${slug}/season-${seasonNumber}/episode-${episodeNumber}`
         );
         if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
         const data = await res.json();
