@@ -42,33 +42,24 @@ function Register() {
 
     try {
       const res = await fetch("https://anime-1-dv13.onrender.com/api/register", {
-
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: username.trim(),
-          email: email.trim().toLowerCase(),
-          password: password,
-        }),
+        body: JSON.stringify({ name, email, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json();      console.log("REGISTER RESPONSE:", res.status, data);
 
-      if (!res.ok) {
-        if (data.message) setError(data.message);
-        else if (data.error === "nick_exists") setError("⚠️ Это имя уже занято");
-        else if (data.error === "email_exists") setError("📧 Этот email уже зарегистрирован");
-        else setError(data.error || "Ошибка регистрации");
-        return;
+      if (res.ok) {
+        alert("Пользователь зарегистрирован! Проверьте почту для кода подтверждения.");
+        navigate("/verification");
+      } else {
+        alert(data.message || "Ошибка регистрации");
       }
-
-      setSuccess("✅ Письмо для подтверждения отправлено на вашу почту.");
-      localStorage.setItem("pendingEmail", email.trim().toLowerCase());
-      setTimeout(() => navigate("/Verification"), 1500);
-    } catch (err) {
-      console.error(err);
-      setError("🚫 Ошибка соединения с сервером");
+    } catch (error) {
+      console.error("Ошибка запроса:", error);
+      alert("Произошла ошибка соединения с сервером");
     }
+
   };
 
   return (

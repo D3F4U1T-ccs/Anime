@@ -626,7 +626,7 @@ function Home() {
                             e.stopPropagation();
                             setOpenId(anime._id);
                           }}
-                          className="font-bold w-6 h-6 rounded-full -mb-[12px] bg-purple-700/90 text-white flex items-center justify-center transition-transform"
+                          className="font-bold w-5 h-5 text-[14px] rounded-full -mb-[12px] bg-purple-700/90 text-white flex items-center justify-center transition-transform"
                         >
                           i
                         </button>
