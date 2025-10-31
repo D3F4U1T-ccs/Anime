@@ -421,10 +421,11 @@ app.post("/api/verify-code", async (req, res) => {
 
     if (result.ok) {
       const token = jwt.sign(
-        { userId: user._id, email: user.email },
+        { userId: user._id, email: user.email, isAdmin: user.isAdmin },
         process.env.JWT_SECRET,
-        { expiresIn: '1h' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
       );
+
 
       return res.json({
         ok: true,
@@ -796,10 +797,11 @@ app.post("/api/login", async (req, res) => {
 
     // 💡 Если всё ок — выдаём токен
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id, email: user.email, isAdmin: user.isAdmin },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
     );
+
 
     res.json({
       message: "Вход выполнен",

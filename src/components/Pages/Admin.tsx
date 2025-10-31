@@ -47,13 +47,13 @@ type RecItem = {
 /* ---------------------- Константы UI ---------------------- */
 const GENRES = [
   "Приключения", "Боевик", "Комедия", "Повседневность", "Романтика",
-  "Драма", "Фантастика", "Фэнтези", "Мистика", "Детектив", "Триллер", "Психология"
+  "Драма", "Фантастика", "Фэнтези", "Мистика", "Детектив", "Триллер", "Психология", "Экшен"
 ];
 
 const TYPES = [
   "Боевые искусства", "Вампиры", "Военное", "Демоны", "Игры", "История",
   "Космос", "Магия", "Меха", "Музыка", "Самураи", "Сёнен",
-  "Спорт", "Суперсила", "Ужасы", "Школа"
+  "Спорт", "Суперсила", "Ужасы", "Школа", "Исэкай"
 ];
 
 /* ---------------------- RecommendationPanel (по animeId) ---------------------- */
@@ -291,6 +291,18 @@ function AnimeManager({ token }: { token: string | null }) {
     }
   };
 
+  const toggleGenreSel = (genre: string) => {
+    if (!selected) return;
+    const has = selected.genres.includes(genre);
+    selSet({ genres: has ? selected.genres.filter(g => g !== genre) : [...selected.genres, genre] });
+  };
+
+  const toggleTypeSel = (type: string) => {
+    if (!selected) return;
+    const has = selected.types.includes(type);
+    selSet({ types: has ? selected.types.filter(t => t !== type) : [...selected.types, type] });
+  };
+
   const addSeasonSel = () => {
     if (!selected) return;
     const newSeasons = [...selected.seasons, { seasonNumber: selected.seasons.length + 1, episodes: [] }];
@@ -327,6 +339,19 @@ function AnimeManager({ token }: { token: string | null }) {
     newEpisodes[eIdx] = { ...newEpisodes[eIdx], [field]: value } as Episode;
     newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
     selSet({ seasons: newSeasons });
+  };
+
+  const addDateSel = () => {
+    if (!selected) return;
+    selSet({ dates: [...selected.dates, ""] });
+  };
+  const deleteDateSel = (idx: number) => {
+    if (!selected) return;
+    selSet({ dates: selected.dates.filter((_, i) => i !== idx) });
+  };
+  const changeDateSel = (idx: number, v: string) => {
+    if (!selected) return;
+    const d = [...selected.dates]; d[idx] = v; selSet({ dates: d });
   };
 
   const saveSelected = async () => {
@@ -427,87 +452,166 @@ function AnimeManager({ token }: { token: string | null }) {
             <div className="text-gray-300 text-sm">Выберите аниме для редактирования</div>
           ) : (
             <div>
-              <div className="flex gap-2 mb-3">
-                <input name="nameRu" placeholder="Название (RU)" value={selected.nameRu} onChange={selHandleChange}
-                  className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
-                <input name="rating" placeholder="Рейтинг" value={selected.rating} onChange={selHandleChange}
-                  className="w-28 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
-              </div>
+              {/* TOP: MAIN INFO */}
+              <div className="bg-gray-700 p-4 rounded mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-28 h-36 bg-gray-600 rounded overflow-hidden">
+                    {selected.thumbnail ? <img src={selected.thumbnail} alt="poster" className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-xs text-gray-300">Нет фото</div>}
+                  </div>
+                </div>
 
-              <div className="flex gap-2 mb-3">
-                <input name="nameEn" placeholder="Название (EN)" value={selected.nameEn} onChange={selHandleChange}
-                  className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
-                <input name="slug" placeholder="Slug" value={selected.slug} onChange={selHandleChange}
-                  className="w-64 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
-              </div>
+                <div className="md:col-span-2">
+                  <div className="flex gap-2 mb-3">
+                    <input name="nameRu" placeholder="Название (RU)" value={selected.nameRu} onChange={selHandleChange}
+                      className="flex-1 p-2 rounded bg-gray-600 border border-gray-500 text-white" />
+                    <input name="rating" placeholder="Рейтинг" value={selected.rating} onChange={selHandleChange}
+                      className="w-28 p-2 rounded bg-gray-600 border border-gray-500 text-white" />
+                  </div>
 
-              <input name="thumbnail" placeholder="URL постера" value={selected.thumbnail} onChange={selHandleChange}
-                className="w-full p-2 rounded bg-gray-700 border border-gray-600 mb-3 text-white" />
+                  <div className="flex gap-2 mb-2">
+                    <input name="nameEn" placeholder="Название (EN)" value={selected.nameEn} onChange={selHandleChange}
+                      className="flex-1 p-2 rounded bg-gray-600 border border-gray-500 text-white" />
+                    <input name="slug" placeholder="Slug" value={selected.slug} onChange={selHandleChange}
+                      className="w-64 p-2 rounded bg-gray-600 border border-gray-500 text-white" />
+                  </div>
 
-              <textarea name="description" placeholder="Описание" value={selected.description} onChange={selHandleChange}
-                className="w-full p-2 rounded bg-gray-700 border border-gray-600 h-24 mb-3 text-white" />
-
-              <div>
-                <h4 className="text-sm text-gray-300 mb-2">Сезоны и серии</h4>
-                {selected.seasons.map((season, sIdx) => (
-                  <div key={sIdx} className="mb-4 p-3 bg-gray-700 rounded">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="font-medium">Сезон {season.seasonNumber}</div>
-                      <div className="flex gap-2">
-                        {selected.seasons.length > 1 && <button type="button" onClick={() => deleteSeasonSel(sIdx)} className="text-sm bg-red-600 px-2 py-1 rounded">Удалить</button>}
-                        <button type="button" onClick={() => addEpisodeSel(sIdx)} className="text-sm bg-green-600 px-2 py-1 rounded">+ Серия</button>
-                      </div>
+                  <div className="flex gap-2 items-center text-sm text-gray-300">
+                    <div className="flex items-center gap-2">
+                      <span className="opacity-80">ID:</span>
+                      <code className="bg-gray-800 px-2 py-1 rounded">{selected._id}</code>
                     </div>
 
-                    {season.episodes.map((ep, eIdx) => (
-                      <div key={eIdx} className="mb-2">
-                        <div className="flex gap-2 items-center">
-                          <input placeholder={`Название ${ep.number}-й серии`} value={ep.title || ""} onChange={(e) => {
-                            const v = e.target.value;
-                            const newSeasons = [...selected.seasons];
-                            const newEpisodes = [...newSeasons[sIdx].episodes];
-                            newEpisodes[eIdx] = { ...newEpisodes[eIdx], title: v };
-                            newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
-                            selSet({ seasons: newSeasons });
-                          }} className="flex-1 p-2 rounded bg-gray-600 border border-gray-500" />
-
-                          <button type="button" onClick={() => deleteEpisodeSel(sIdx, eIdx)} className="px-2 py-1 bg-red-600 rounded">×</button>
-                        </div>
-
-                        <input placeholder={`Ссылка на ${ep.number}-ю серию`} value={ep.url || ""} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'url', e.target.value)}
-                          className="w-full p-2 rounded bg-gray-600 border border-gray-500 mt-2" />
-
-                        <div className="flex flex-col gap-1 mt-2">
-                          <label className="text-sm opacity-80">Опенинг:</label>
-                          <div className="flex gap-2">
-                            <input type="text" placeholder="Начало (например: 1:30)" value={ep.openingStart || ""}
-                              onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'openingStart', e.target.value)}
-                              className="flex-1 p-2 rounded bg-gray-600 border border-gray-500" />
-                            <input type="text" placeholder="Конец (например: 2:47)" value={ep.openingEnd || ""}
-                              onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'openingEnd', e.target.value)}
-                              className="flex-1 p-2 rounded bg-gray-600 border border-gray-500" />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1 mt-2">
-                          <label className="text-sm opacity-80">Эндинг:</label>
-                          <div className="flex gap-2">
-                            <input type="text" placeholder="Начало (например: 20:10)" value={ep.endingStart || ""}
-                              onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'endingStart', e.target.value)}
-                              className="flex-1 p-2 rounded bg-gray-600 border border-gray-500" />
-                            <input type="text" placeholder="Конец (например: 23:10)" value={ep.endingEnd || ""}
-                              onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'endingEnd', e.target.value)}
-                              className="flex-1 p-2 rounded bg-gray-600 border border-gray-500" />
-                          </div>
-                        </div>
-
-                      </div>
-                    ))}
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="opacity-80">Постер URL:</span>
+                      <input name="thumbnail" value={selected.thumbnail} onChange={selHandleChange}
+                        className="flex-1 p-1 rounded bg-gray-600 border border-gray-500 text-white" />
+                    </div>
                   </div>
-                ))}
-                <button type="button" onClick={addSeasonSel} className="bg-blue-600 px-3 py-1 rounded mb-3">+ Добавить сезон</button>
+
+                </div>
               </div>
 
+              <textarea name="description" placeholder="Описание" value={selected.description} onChange={selHandleChange}
+                className="w-full p-3 rounded bg-gray-700 border border-gray-600 h-28 mb-4 text-white" />
+
+              {/* DATES */}
+              <div className="mb-4 bg-gray-700 p-4 rounded">
+                <h4 className="font-medium mb-2 text-white">Годы / даты</h4>
+                <div className="flex flex-col gap-2">
+                  {selected.dates.map((d, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={d} onChange={(e) => changeDateSel(i, e.target.value)} className="p-2 rounded bg-gray-600 border border-gray-500 flex-1 text-white" />
+                      {selected.dates.length > 1 && <button type="button" onClick={() => deleteDateSel(i)} className="px-2 py-1 bg-red-600 rounded">×</button>}
+                    </div>
+                  ))}
+                  <div className="mt-2">
+                    <button type="button" onClick={addDateSel} className="px-3 py-1 bg-blue-600 rounded">+ Добавить дату</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* GENRES & TYPES */}
+              <div className="mb-4 bg-gray-700 p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2 text-white">Жанры</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {GENRES.map(g => (
+                      <button key={g} type="button" onClick={() => toggleGenreSel(g)}
+                        className={`px-3 py-1 rounded-full border text-sm ${selected.genres.includes(g) ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-gray-600 border-gray-500 text-gray-200 hover:border-indigo-400'}`}>
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2 text-white">Типы</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {TYPES.map(t => (
+                      <button key={t} type="button" onClick={() => toggleTypeSel(t)}
+                        className={`px-3 py-1 rounded-full border text-sm ${selected.types.includes(t) ? 'bg-green-500 border-green-400 text-white' : 'bg-gray-600 border-gray-500 text-gray-200 hover:border-green-400'}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* SEASONS & EPISODES */}
+              <div className="mb-4">
+                <h4 className="font-medium text-white mb-3">Сезоны и серии</h4>
+                <div className="space-y-4">
+                  {selected.seasons.map((season, sIdx) => (
+                    <div key={sIdx} className="bg-gray-700 p-4 rounded">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-lg font-semibold text-white">Сезон {season.seasonNumber}</div>
+                          <div className="text-sm text-gray-300">{season.episodes.length} серий</div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          {selected.seasons.length > 1 && <button onClick={() => deleteSeasonSel(sIdx)} className="px-3 py-1 bg-red-600 rounded">Удалить сезон</button>}
+                          <button onClick={() => addEpisodeSel(sIdx)} className="px-3 py-1 bg-green-600 rounded">+ Серия</button>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3">
+                        {season.episodes.map((ep, eIdx) => (
+                          <div key={eIdx} className="p-3 rounded border border-gray-600 bg-gray-800">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-indigo-600 text-white px-2 py-1 rounded">Серия {ep.number}</div>
+                                <input placeholder="Название серии (необязательно)" value={ep.title || ''}
+                                  onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'title', e.target.value)}
+                                  className="p-2 rounded bg-gray-700 border border-gray-600 flex-1 text-white" />
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => deleteEpisodeSel(sIdx, eIdx)} className="px-2 py-1 bg-red-600 rounded">×</button>
+                              </div>
+                            </div>
+
+                            <div className="mt-2">
+                              <input placeholder={`Ссылка на серию ${ep.number}`} value={ep.url || ''} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'url', e.target.value)}
+                                className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-1 gap-3">
+                              <div>
+                                <div className="text-sm text-gray-300 mb-1">Опенинг (начало — конец)</div>
+                                <div className="flex gap-2">
+                                  <input value={ep.openingStart || ''} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'openingStart', e.target.value)} placeholder="1:30"
+                                    className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                                  <input value={ep.openingEnd || ''} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'openingEnd', e.target.value)} placeholder="2:47"
+                                    className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-sm text-gray-300 mb-1">Эндинг (начало — конец)</div>
+                                <div className="flex gap-2">
+                                  <input value={ep.endingStart || ''} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'endingStart', e.target.value)} placeholder="20:10"
+                                    className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                                  <input value={ep.endingEnd || ''} onChange={(e) => handleEpisodeChangeSel(sIdx, eIdx, 'endingEnd', e.target.value)} placeholder="23:10"
+                                    className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3">
+                  <button type="button" onClick={addSeasonSel} className="px-3 py-1 bg-blue-600 rounded">+ Добавить сезон</button>
+                </div>
+              </div>
+
+              {/* ACTIONS */}
               <div className="flex gap-2 mt-4">
                 <button onClick={saveSelected} className="bg-indigo-500 px-4 py-2 rounded">Сохранить изменения</button>
                 <button onClick={() => { setSelected(null); setMsg(""); }} className="bg-gray-600 px-4 py-2 rounded">Отменить</button>

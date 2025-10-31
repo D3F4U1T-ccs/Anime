@@ -64,11 +64,9 @@ function Navbar() {
       {/* Ограничиваем контент по ширине, чтобы не было горизонтального overflow */}
       <div className="mx-auto max-w-[1100px] px-4 sm:px-10 py-3 flex items-center justify-between">
         {/* Логотип */}
-        <NavLink to="/" className="flex items-center gap-2 text-[16px] font-semibold">
+        <NavLink to="/" className="flex items-center gap-2 text-[16px] font-bold">
           <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform duration-300">
-            <h1 className="font-bold text-[22px] tracking-wide text-black dark:text-white select-none">
-              AniWorld
-            </h1>
+            <h1 className="Logo_text scale-125 " >Flow2Anime</h1>
           </div>
         </NavLink>
 

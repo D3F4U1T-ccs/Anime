@@ -1,3 +1,4 @@
+// src/pages/Openings.tsx
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -9,17 +10,40 @@ type AnimeCard = {
   thumbnail?: string | null;
   seasonsCount?: number;
   episodesCount?: number;
-  openingCount?: number; // количество эпизодов с опенингом
-  endingCount?: number; // количество эпизодов с эндингом
+  openingCount?: number;
+  endingCount?: number;
+  combinedCount?: number;
   rating?: number | null;
-  firstAirYear?: number | null;
+  firstAirYear?: number | string | null;
   genres?: string[];
   types?: string[];
 };
 
-
 function clamp(n: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, n));
+}
+
+function parseFirstAirYear(dates: any): number | string | null {
+  if (!Array.isArray(dates) || dates.length === 0) return null;
+  const raw = dates[0];
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  // Попробуем распарсить как дату
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return d.getFullYear();
+  }
+
+  // Если строка — просто год "2024" (без даты), Date тоже обычно парсит,
+  // но на всякий случай проверим шаблон 4 цифры
+  if (/^\d{4}$/.test(s)) {
+    return Number(s);
+  }
+
+  // В противном случае возвращаем исходную строку (например "Онгоинг" или "Ongoing")
+  return s;
 }
 
 export default function Openings(): JSX.Element {
@@ -27,7 +51,6 @@ export default function Openings(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // search (like Home)
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,11 +68,12 @@ export default function Openings(): JSX.Element {
     setLoading(true);
     setError(null);
 
-    fetch(`${import.meta.env.MODE === "production"
-      ? "https://anime-1-dv13.onrender.com"
-      : "http://localhost:5000"
-      }/api/anime`)
-
+    fetch(
+      `${import.meta.env.MODE === "production"
+        ? "https://anime-1-dv13.onrender.com"
+        : "http://localhost:5000"
+      }/api/anime`
+    )
       .then(async (res) => {
         const ct = res.headers.get("content-type") || "";
         if (!res.ok) {
@@ -79,6 +103,7 @@ export default function Openings(): JSX.Element {
 
           let openingCount = 0;
           let endingCount = 0;
+          let combinedCount = 0;
 
           for (const s of seasons) {
             if (!s || !s.episodes) continue;
@@ -93,16 +118,11 @@ export default function Openings(): JSX.Element {
 
               if (hasOpening) openingCount++;
               if (hasEnding) endingCount++;
+              if (hasOpening || hasEnding) combinedCount++;
             }
           }
 
-          const firstAirYear =
-            Array.isArray(anime.dates) && anime.dates.length > 0
-              ? (() => {
-                const d = new Date(anime.dates[0]);
-                return isNaN(d.getTime()) ? null : d.getFullYear();
-              })()
-              : null;
+          const firstAirYear = parseFirstAirYear(anime.dates);
 
           return {
             _id: anime._id,
@@ -114,6 +134,7 @@ export default function Openings(): JSX.Element {
             episodesCount,
             openingCount,
             endingCount,
+            combinedCount,
             rating: anime.rating ?? null,
             firstAirYear,
             genres: Array.isArray(anime.genres) ? anime.genres : [],
@@ -145,19 +166,18 @@ export default function Openings(): JSX.Element {
     });
   }, [items, debouncedQuery]);
 
-  if (loading) return <div className="p-6 mt-6">Загрузка опенингов...</div>;
+  if (loading) return <div className="p-6 text-center mt-[400px]">Загрузка опенингов...</div>;
   if (error) return <div className="p-6 mt-6 text-red-500">Ошибка: {error}</div>;
   if (items.length === 0) return <div className="p-6 mt-6">Опеннингов не найдено.</div>;
 
   return (
-    <div className="max-w-7xl mx-auto mt-16 p-4 sm:p-6"> {/* уменьшил отступ сверху: mt-12 -> mt-6 */}
+    <div className="max-w-7xl mx-auto mt-16 p-4 sm:p-6">
       <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold">Опенинги / Openings</h1>
           <p className="text-sm text-gray-500 max-w-prose mt-1">Быстро находи эпизоды с OP/ED — адаптивная сетка, квадратные постеры и компактная информация.</p>
         </div>
 
-        {/* Search input (like Home) */}
         <div className="w-full sm:w-auto mt-3 sm:mt-0">
           <div className="flex items-center gap-2">
             <input
@@ -170,7 +190,7 @@ export default function Openings(): JSX.Element {
                 }
               }}
               placeholder="Поиск по названию, жанру или типу..."
-              className="w-full sm:w-[360px]  p-2 rounded-lg border border-gray-400 dark:border-gray-700 bg-white/90 dark:bg-gray-800 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="w-full sm:w-[360px] p-2 rounded-lg border border-gray-400 dark:border-gray-700 bg-white/90 dark:bg-gray-800 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
             />
             {query && (
               <button
@@ -186,18 +206,23 @@ export default function Openings(): JSX.Element {
         </div>
       </header>
 
-      <div
-        className="
-    grid 
-    grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 
-    gap-6
-  "
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6">
         {filtered.map((a) => {
           const eps = a.episodesCount ?? 0;
           const ops = a.openingCount ?? 0;
           const eds = a.endingCount ?? 0;
-          const opPercent = eps > 0 ? Math.round((ops / eps) * 100) : 0;
+          const combined = a.combinedCount ?? 0;
+
+          const opPercentRaw = eps > 0 ? (ops / eps) * 100 : 0;
+          const edPercentRaw = eps > 0 ? (eds / eps) * 100 : 0;
+          const combinedPercentRaw = eps > 0 ? (combined / eps) * 100 : 0;
+
+          const opPercent = Math.round(opPercentRaw);
+          const edPercent = Math.round(edPercentRaw);
+          const combinedPercent = Math.round(combinedPercentRaw);
+
+          // Безопасный коэффициент для расчёта градиента (если combinedPercentRaw === 0)
+          const gradientSplit = combinedPercentRaw > 0 ? clamp((opPercentRaw / combinedPercentRaw) * 100, 0, 100) : 0;
 
           return (
             <article
@@ -210,7 +235,6 @@ export default function Openings(): JSX.Element {
             >
               <Link to={`/Openings/${encodeURIComponent(a.slug)}`} className="block">
                 <div className="flex flex-col md:flex-row items-stretch h-full">
-                  {/* LEFT: poster — square */}
                   <div className="w-full md:w-48 lg:w-56 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
                     <div className="relative w-full" style={{ aspectRatio: "1 / 1" }}>
                       {a.thumbnail ? (
@@ -218,7 +242,6 @@ export default function Openings(): JSX.Element {
                           src={a.thumbnail}
                           alt={a.nameRu || a.nameEn || a.slug}
                           className="w-full h-full object-cover"
-                          // rounded corners: top on mobile, left on md+
                           style={{
                             borderTopLeftRadius: 12,
                             borderTopRightRadius: 12,
@@ -230,7 +253,6 @@ export default function Openings(): JSX.Element {
                         <div className="w-full h-full flex items-center justify-center text-gray-500">Нет изображения</div>
                       )}
 
-                      {/* play overlay */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="bg-black/28 rounded-full p-2">
                           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -239,7 +261,6 @@ export default function Openings(): JSX.Element {
                         </div>
                       </div>
 
-                      {/* small badges in corner */}
                       <div className="absolute top-3 left-3 flex flex-col gap-2">
                         <div className="inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-medium px-2 py-1 rounded">▶ {ops}</div>
                         <div className="inline-flex items-center gap-2 bg-green-600 text-white text-xs font-medium px-2 py-1 rounded">♪ {eds}</div>
@@ -247,7 +268,6 @@ export default function Openings(): JSX.Element {
                     </div>
                   </div>
 
-                  {/* RIGHT: info column */}
                   <div className="flex-1 flex flex-col justify-between min-w-0 p-4">
                     <div>
                       <div className="flex items-start justify-between gap-3">
@@ -286,20 +306,26 @@ export default function Openings(): JSX.Element {
                           </div>
                         </div>
 
-                        {/* OP / ED counters + coverage */}
                         <div className="flex flex-col items-start gap-1 min-w-0">
                           <div className="text-xs text-gray-400">OP / ED</div>
                           <div className="flex items-center gap-3">
                             <div className="text-sm font-medium truncate">OP: {ops}</div>
                             <div className="text-sm font-medium truncate">ED: {eds}</div>
                           </div>
-                          <div className="text-xs text-gray-400">{eps > 0 ? `${opPercent}% coverage` : "—"}</div>
+                          <div className="text-xs text-gray-400">{eps > 0 ? `${combinedPercent}% coverage (OP+ED)` : "—"}</div>
                         </div>
                       </div>
 
                       <div className="mt-3">
-                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500" style={{ width: `${clamp(opPercent)}%` }} />
+                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${clamp(combinedPercent)}%`,
+                              background:
+                                `linear-gradient(90deg, rgba(79,70,229,1) 0%, rgba(79,70,229,1) ${gradientSplit}%, rgba(16,185,129,1) ${gradientSplit}%, rgba(16,185,129,1) 100%)`,
+                            }}
+                          />
                         </div>
                       </div>
                     </div>

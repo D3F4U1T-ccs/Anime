@@ -47,7 +47,7 @@ function Register() {
         body: JSON.stringify({ name, email, password }),
       });
 
-      const data = await res.json();      console.log("REGISTER RESPONSE:", res.status, data);
+      const data = await res.json(); console.log("REGISTER RESPONSE:", res.status, data);
 
       if (res.ok) {
         alert("Пользователь зарегистрирован! Проверьте почту для кода подтверждения.");
@@ -131,9 +131,9 @@ function Register() {
 
               <Button
                 type="submit"
-                className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
+                className="w-full rounded-xl bg-gray-600 hover:bg-gray-500 shadow-md"
               >
-                Зарегистрироваться
+                Регистрация временно не работает.
               </Button>
 
               <p className="text-sm text-center text-neutral-500">
