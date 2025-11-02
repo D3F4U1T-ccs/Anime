@@ -44,22 +44,30 @@ function Register() {
       const res = await fetch("https://anime-1-dv13.onrender.com/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({
+          name: username.trim(),
+          email: email.trim().toLowerCase(),
+          password: password,
+        }),
       });
 
-      const data = await res.json(); console.log("REGISTER RESPONSE:", res.status, data);
+      const data = await res.json();
 
-      if (res.ok) {
-        alert("Пользователь зарегистрирован! Проверьте почту для кода подтверждения.");
-        navigate("/verification");
-      } else {
-        alert(data.message || "Ошибка регистрации");
+      if (!res.ok) {
+        if (data.message) setError(data.message);
+        else if (data.error === "nick_exists") setError("⚠️ Это имя уже занято");
+        else if (data.error === "email_exists") setError("📧 Этот email уже зарегистрирован");
+        else setError(data.error || "Ошибка регистрации");
+        return;
       }
-    } catch (error) {
-      console.error("Ошибка запроса:", error);
-      alert("Произошла ошибка соединения с сервером");
-    }
 
+      setSuccess("✅ Письмо для подтверждения отправлено на вашу почту.");
+      localStorage.setItem("pendingEmail", email.trim().toLowerCase());
+      setTimeout(() => navigate("/verification"), 1500);
+    } catch (err) {
+      console.error(err);
+      setError("🚫 Ошибка соединения с сервером");
+    }
   };
 
   return (
@@ -131,9 +139,9 @@ function Register() {
 
               <Button
                 type="submit"
-                className="w-full rounded-xl bg-gray-600 hover:bg-gray-500 shadow-md"
+                className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
               >
-                Регистрация временно не работает.
+                Зарегистрироваться
               </Button>
 
               <p className="text-sm text-center text-neutral-500">
@@ -151,3 +159,15 @@ function Register() {
 }
 
 export default Register;
+
+// function register() {
+//   return (
+//     <div>
+//       <h1 className="text-center mt-[300px]" >
+//         регистрация только для админов
+//       </h1>
+//     </div>
+//   )
+// }
+
+// export default register

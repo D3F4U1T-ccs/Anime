@@ -214,11 +214,11 @@ export default function Openings(): JSX.Element {
           const combined = a.combinedCount ?? 0;
 
           const opPercentRaw = eps > 0 ? (ops / eps) * 100 : 0;
-          const edPercentRaw = eps > 0 ? (eds / eps) * 100 : 0;
+          // const edPercentRaw = eps > 0 ? (eds / eps) * 100 : 0;
           const combinedPercentRaw = eps > 0 ? (combined / eps) * 100 : 0;
 
-          const opPercent = Math.round(opPercentRaw);
-          const edPercent = Math.round(edPercentRaw);
+          // const opPercent = Math.round(opPercentRaw);
+          // const edPercent = Math.round(edPercentRaw);
           const combinedPercent = Math.round(combinedPercentRaw);
 
           // Безопасный коэффициент для расчёта градиента (если combinedPercentRaw === 0)

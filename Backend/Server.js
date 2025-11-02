@@ -144,30 +144,85 @@ const normalizeSlug = (text) => {
 };
 
 
-// PUT /api/anime/:id — обновление аниме
+// PUT /api/anime/:id — обновление аниме (исправлено поведение с movies)
 app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Неверный id' });
-    const update = req.body;
-    // Приводим rating к числу и делаем минимальную валидацию
-    if (update.rating !== undefined) update.rating = Number(update.rating) || 0;
 
-    // Опционально: нормализовать slug как в add
+    const updateRaw = req.body || {};
+    console.log('PUT /api/anime/:id body:', JSON.stringify(updateRaw, null, 2));
+
+    // запрет на изменение _id
+    if (updateRaw._id) delete updateRaw._id;
+
+    const update = { ...updateRaw };
+    if (update.rating !== undefined) update.rating = Number(update.rating) || 0;
     if (update.slug) update.slug = String(update.slug).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
     const anime = await Anime.findById(id);
     if (!anime) return res.status(404).json({ message: 'Аниме не найдено' });
 
-    // Записываем поля
-    Object.assign(anime, update);
+    // seasons: нормализация + фильтрация эпизодов без url
+    if (update.seasons !== undefined && Array.isArray(update.seasons)) {
+      const formattedSeasons = update.seasons.map((season, i) => {
+        const eps = Array.isArray(season.episodes) ? season.episodes : [];
+        const formattedEpisodes = eps
+          .map((ep, j) => ({
+            number: Number(ep.number) || j + 1,
+            url: String(ep.url || "").trim(),
+            title: String(ep.title || "").trim(),
+            openingStart: String(ep.openingStart || "").trim(),
+            openingEnd: String(ep.openingEnd || "").trim(),
+            endingStart: String(ep.endingStart || "").trim(),
+            endingEnd: String(ep.endingEnd || "").trim(),
+          }))
+          .filter(ep => ep.url.length > 0);
+        return { seasonNumber: Number(season.seasonNumber) || i + 1, episodes: formattedEpisodes };
+      });
+      anime.seasons = formattedSeasons;
+      delete update.seasons;
+    }
+
+    // movies: если пришли — форматируем; если после форматирования НЕ пусто — перезаписываем;
+    // если пусто — НЕ трогаем поле (чтобы случайно не удалить существующие фильмы).
+    if (update.movies !== undefined) {
+      if (!Array.isArray(update.movies)) {
+        console.warn('PUT.movies пришёл в некорректном формате, игнорируем поле movies');
+      } else {
+        const formattedMovies = update.movies
+          .map(m => ({ name: String(m?.name || "").trim(), url: String(m?.url || "").trim() }))
+          .filter(m => (m.name && m.name.length) || (m.url && m.url.length));
+
+        console.log('PUT /api/anime/:id formattedMovies:', JSON.stringify(formattedMovies, null, 2));
+
+        if (formattedMovies.length > 0) {
+          anime.movies = formattedMovies;
+        } else {
+          // НЕ удаляем anime.movies, если formattedMovies пустой — это ключевое изменение.
+          console.log('PUT: movies пришёл, но после фильтрации пуст — существующие movies не трогаем');
+        }
+      }
+      delete update.movies;
+    }
+
+    // остальные поля применяем
+    Object.keys(update).forEach(k => {
+      if (k === 'createdAt' || k === 'updatedAt') return;
+      anime[k] = update[k];
+    });
+
     await anime.save();
-    res.json({ message: 'Сохранено', anime });
+    return res.json({ message: 'Сохранено', anime });
   } catch (err) {
     console.error('PUT /api/anime/:id error:', err);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    if (err?.name === 'ValidationError') return res.status(400).json({ message: err.message, errors: err.errors });
+    return res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
+
+
+
 
 // DELETE /api/anime/:id — уже может быть в вашем server.js; если нет, вот простой вариант:
 app.delete('/api/anime/:id', verifyAdmin, async (req, res) => {
@@ -185,10 +240,10 @@ app.delete('/api/anime/:id', verifyAdmin, async (req, res) => {
 
 
 
-// 🔹 Добавление аниме (только админ)
+// POST /api/anime/add — добавление аниме (с логированием и поддержкой movies)
 app.post("/api/anime/add", verifyAdmin, async (req, res) => {
   try {
-    console.log("📩 Получено тело запроса:", JSON.stringify(req.body, null, 2));
+    console.log("POST /api/anime/add body:", JSON.stringify(req.body, null, 2));
     const {
       nameRu,
       nameEn,
@@ -200,50 +255,47 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       genres,
       types,
       seasons,
-
-
+      movies,
     } = req.body;
 
-
-    if (!nameRu || !nameEn)
-      return res.status(400).json({ message: "Поля nameRu и nameEn обязательны" });
+    if (!nameRu || !nameEn) return res.status(400).json({ message: "Поля nameRu и nameEn обязательны" });
 
     const finalSlug = normalizeSlug(providedSlug || nameEn);
-    if (!finalSlug)
-      return res.status(400).json({ message: "Не удалось сгенерировать slug" });
+    if (!finalSlug) return res.status(400).json({ message: "Не удалось сгенерировать slug" });
 
     const existing = await Anime.findOne({ slug: finalSlug });
-    if (existing)
-      return res.status(400).json({ message: "Аниме с таким slug уже существует" });
+    if (existing) return res.status(400).json({ message: "Аниме с таким slug уже существует" });
 
-    const safeGenres = Array.isArray(genres)
-      ? genres.map((g) => String(g).trim()).filter(Boolean)
-      : [];
-
-    const safeTypes = Array.isArray(types)
-      ? types.map((t) => String(t).trim()).filter(Boolean)
-      : [];
+    const safeGenres = Array.isArray(genres) ? genres.map(g => String(g).trim()).filter(Boolean) : [];
+    const safeTypes = Array.isArray(types) ? types.map(t => String(t).trim()).filter(Boolean) : [];
 
     const formattedSeasons = Array.isArray(seasons)
-      ? seasons.map((season, i) => ({
-        seasonNumber: Number(season.seasonNumber) || i + 1,
-        episodes: Array.isArray(season.episodes)
-          ? season.episodes.map((ep, j) => ({
+      ? seasons.map((season, i) => {
+        const eps = Array.isArray(season.episodes) ? season.episodes : [];
+        const formattedEpisodes = eps
+          .map((ep, j) => ({
             number: Number(ep.number) || j + 1,
-            url: ep.url?.trim() || "",
-            title: ep.title?.trim() || "",
-            openingStart: ep.openingStart?.trim() || "",
-            openingEnd: ep.openingEnd?.trim() || "",
-            endingStart: ep.endingStart?.trim() || "",
-            endingEnd: ep.endingEnd?.trim() || "",
+            url: String(ep.url || "").trim(),
+            title: String(ep.title || "").trim(),
+            openingStart: String(ep.openingStart || "").trim(),
+            openingEnd: String(ep.openingEnd || "").trim(),
+            endingStart: String(ep.endingStart || "").trim(),
+            endingEnd: String(ep.endingEnd || "").trim(),
           }))
-          : [],
-      }))
+          .filter(ep => ep.url.length > 0);
+        return { seasonNumber: Number(season.seasonNumber) || i + 1, episodes: formattedEpisodes };
+      })
       : [];
 
+    const formattedMovies = Array.isArray(movies)
+      ? movies
+        .map(m => ({ name: String(m?.name || "").trim(), url: String(m?.url || "").trim() }))
+        .filter(m => (m.name && m.name.length) || (m.url && m.url.length))
+      : [];
 
+    console.log('POST /api/anime/add formattedMovies:', JSON.stringify(formattedMovies, null, 2));
 
-    const newAnime = new Anime({
+    const newAnimeData = {
       nameRu: nameRu.trim(),
       nameEn: nameEn.trim(),
       slug: finalSlug,
@@ -254,20 +306,24 @@ app.post("/api/anime/add", verifyAdmin, async (req, res) => {
       genres: safeGenres,
       types: safeTypes,
       seasons: formattedSeasons,
-    });
+    };
 
+    if (formattedMovies.length > 0) newAnimeData.movies = formattedMovies;
 
-
+    const newAnime = new Anime(newAnimeData);
     await newAnime.save();
+
     console.log(`✅ Добавлено аниме: ${nameRu} (slug: ${finalSlug})`);
-    res.status(201).json({ message: "Аниме успешно добавлено!", anime: newAnime });
+    return res.status(201).json({ message: "Аниме успешно добавлено!", anime: newAnime });
   } catch (err) {
     console.error("Ошибка при добавлении аниме:", err);
-    if (err?.name === "ValidationError")
-      return res.status(400).json({ message: err.message, errors: err.errors });
-    res.status(500).json({ message: "Ошибка при добавлении аниме" });
+    if (err?.name === "ValidationError") return res.status(400).json({ message: err.message, errors: err.errors });
+    return res.status(500).json({ message: "Ошибка при добавлении аниме" });
   }
 });
+
+
+
 
 // 🔹 Получить все аниме
 app.get("/api/anime", async (req, res) => {
@@ -421,11 +477,10 @@ app.post("/api/verify-code", async (req, res) => {
 
     if (result.ok) {
       const token = jwt.sign(
-        { userId: user._id, email: user.email, isAdmin: user.isAdmin },
+        { userId: user._id, email: user.email },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+        { expiresIn: '30h' }
       );
-
 
       return res.json({
         ok: true,
@@ -797,11 +852,10 @@ app.post("/api/login", async (req, res) => {
 
     // 💡 Если всё ок — выдаём токен
     const token = jwt.sign(
-      { userId: user._id, email: user.email, isAdmin: user.isAdmin },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+      { expiresIn: '30h' }
     );
-
 
     res.json({
       message: "Вход выполнен",

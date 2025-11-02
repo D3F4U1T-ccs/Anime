@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { MailCheck } from "lucide-react";
 import { Button } from "../../ui/button";
@@ -20,7 +20,7 @@ function Login() {
     e.preventDefault();
     setMsg("");
     setShowVerificationModal(false);
-// ready
+    // ready
     try {
       const res = await fetch("https://anime-1-dv13.onrender.com/api/login", {
         method: "POST",
@@ -90,11 +90,11 @@ function Login() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-neutral-600 dark:text-white">
-              Вход в AniWorld
+              Вход в Flow2Anime
             </h1>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              С возвращением!{" "}
-              <span className="text-violet-600">Продолжи</span> своё аниме-путешествие
+              Вход в аккаунт{" "}
+              <span className="text-violet-600">только</span> для админов!
             </p>
           </CardHeader>
 
@@ -134,13 +134,9 @@ function Login() {
               </Button>
 
               <p className="text-sm text-center text-neutral-500">
-                Нет аккаунта?{" "}
-                <Link
-                  to="/register"
-                  className="text-violet-500 hover:underline font-medium"
-                >
-                  Зарегистрироваться
-                </Link>
+                Хочешь в админы?
+                {" "}
+                пиши нам в тг
               </p>
             </form>
           </CardContent>

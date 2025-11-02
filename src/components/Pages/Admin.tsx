@@ -18,6 +18,11 @@ interface Season {
   episodes: Episode[];
 }
 
+interface MovieItem {
+  name?: string;
+  url: string;
+}
+
 interface AnimeData {
   _id?: string;
   nameRu: string;
@@ -30,6 +35,7 @@ interface AnimeData {
   genres: string[];
   types: string[];
   seasons: Season[];
+  movies?: MovieItem[]; // необязательное поле — заполняется только если добавлено
 }
 
 type RecShort = {
@@ -55,6 +61,16 @@ const TYPES = [
   "Космос", "Магия", "Меха", "Музыка", "Самураи", "Сёнен",
   "Спорт", "Суперсила", "Ужасы", "Школа", "Исэкай"
 ];
+
+/* ---------------------- Вспомогательные функции ---------------------- */
+// Убирает пустые или некорректные записи фильмов — сервер часто не любит пустые строки.
+function sanitizeMovies(movies?: MovieItem[]) {
+  if (!Array.isArray(movies)) return undefined;
+  const cleaned = movies
+    .map(m => ({ name: (m.name || "").trim(), url: (m.url || "").trim() }))
+    .filter(m => m.url.length > 0); // требуем хотя бы URL — если хотите хранить без URL, уберите этот фильтр
+  return cleaned.length > 0 ? cleaned : undefined;
+}
 
 /* ---------------------- RecommendationPanel (по animeId) ---------------------- */
 function RecommendationPanel({ token }: { token: string | null }) {
@@ -258,6 +274,7 @@ function AnimeManager({ token }: { token: string | null }) {
         genres: Array.isArray(a.genres) ? a.genres : [],
         types: Array.isArray(a.types) ? a.types : [],
         seasons: Array.isArray(a.seasons) ? a.seasons : [{ seasonNumber: 1, episodes: [] }],
+        movies: Array.isArray(a.movies) ? a.movies : [],
       }));
       setList(mapped);
     } catch (err) {
@@ -276,7 +293,7 @@ function AnimeManager({ token }: { token: string | null }) {
   const selSet = (patch: Partial<AnimeData>) => setSelected(prev => prev ? ({ ...prev, ...patch }) : prev);
 
   const selHandleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target as HTMLInputElement | HTMLTextAreaElement;
     if (!selected) return;
     if (name === "nameEn") {
       const generatedSlug = value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
@@ -341,6 +358,24 @@ function AnimeManager({ token }: { token: string | null }) {
     selSet({ seasons: newSeasons });
   };
 
+  // --- Movie handlers for manager ---
+  const addMovieSel = () => {
+    if (!selected) return;
+    const newMovies = [...(selected.movies || []), { name: "", url: "" }];
+    selSet({ movies: newMovies });
+  };
+  const deleteMovieSel = (idx: number) => {
+    if (!selected) return;
+    const newMovies = (selected.movies || []).filter((_, i) => i !== idx);
+    selSet({ movies: newMovies });
+  };
+  const handleMovieChangeSel = (idx: number, field: string, value: string) => {
+    if (!selected) return;
+    const newMovies = [...(selected.movies || [])];
+    newMovies[idx] = { ...newMovies[idx], [field]: value } as MovieItem;
+    selSet({ movies: newMovies });
+  };
+
   const addDateSel = () => {
     if (!selected) return;
     selSet({ dates: [...selected.dates, ""] });
@@ -359,7 +394,20 @@ function AnimeManager({ token }: { token: string | null }) {
     if (!token) return setMsg("Нет токена администратора");
     setMsg("");
     try {
+      // формируем тело: отправляем seasons всегда, movies — только если есть непустые URL
       const body: any = { ...selected, rating: Number(selected.rating) };
+
+      const cleaned = sanitizeMovies(selected.movies);
+      if (cleaned) {
+        body.movies = cleaned;
+      } else {
+        // если нет пригодных фильмов — удаляем свойство, чтобы не перезаписывать на сервере
+        delete body.movies;
+      }
+
+      // для диагностики (можно удалить в проде)
+      console.debug("Отправляем body для сохранения:", body);
+
       const res = await fetch(`https://anime-1-dv13.onrender.com/api/anime/${(selected as any)._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -611,6 +659,28 @@ function AnimeManager({ token }: { token: string | null }) {
                 </div>
               </div>
 
+              {/* MOVIES (опционально) */}
+              <div className="mb-4">
+                <h4 className="font-medium text-white mb-3">Фильмы / Короткометражки (опционально)</h4>
+                <div className="space-y-3">
+                  {(selected.movies || []).map((m, idx) => (
+                    <div key={idx} className="bg-gray-700 p-3 rounded">
+                      <div className="flex items-center gap-2">
+                        <input placeholder="Название (необязательно)" value={m.name || ''} onChange={(e) => handleMovieChangeSel(idx, 'name', e.target.value)} className="flex-1 p-2 rounded bg-gray-600 border border-gray-500 text-white" />
+                        <button onClick={() => deleteMovieSel(idx)} className="px-2 py-1 bg-red-600 rounded">×</button>
+                      </div>
+                      <div className="mt-2">
+                        <input placeholder="URL фильма" value={m.url || ''} onChange={(e) => handleMovieChangeSel(idx, 'url', e.target.value)} className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+                      </div>
+                    </div>
+                  ))}
+
+                  <div>
+                    <button type="button" onClick={addMovieSel} className="px-3 py-1 bg-green-600 rounded">+ Добавить фильм</button>
+                  </div>
+                </div>
+              </div>
+
               {/* ACTIONS */}
               <div className="flex gap-2 mt-4">
                 <button onClick={saveSelected} className="bg-indigo-500 px-4 py-2 rounded">Сохранить изменения</button>
@@ -640,6 +710,7 @@ function AddAnimeForm({ token }: { token: string | null }) {
     genres: [],
     types: [],
     seasons: [{ seasonNumber: 1, episodes: [] }],
+    movies: [],
   });
 
   const [msg, setMsg] = useState("");
@@ -704,16 +775,14 @@ function AddAnimeForm({ token }: { token: string | null }) {
     });
   };
 
-  const deleteEpisode = (sIdx: number, eIdx: number) => {
-    setAnime(prev => {
-      const newSeasons = [...prev.seasons];
-      const newEpisodes = [...newSeasons[sIdx].episodes];
-      newEpisodes.splice(eIdx, 1);
-      const updatedEpisodes = newEpisodes.map((ep, i) => ({ ...ep, number: i + 1 }));
-      newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: updatedEpisodes };
-      return { ...prev, seasons: newSeasons };
-    });
-  };
+  // --- Movie handlers for Add form ---
+  const addMovie = () => setAnime(prev => ({ ...prev, movies: [...(prev.movies || []), { name: "", url: "" }] }));
+  const deleteMovie = (idx: number) => setAnime(prev => ({ ...prev, movies: (prev.movies || []).filter((_, i) => i !== idx) }));
+  const handleMovieChange = (idx: number, field: string, value: string) => setAnime(prev => {
+    const newMovies = [...(prev.movies || [])];
+    newMovies[idx] = { ...newMovies[idx], [field]: value } as MovieItem;
+    return { ...prev, movies: newMovies };
+  });
 
   const addDate = () => setAnime(prev => ({ ...prev, dates: [...prev.dates, ""] }));
   const deleteDate = (index: number) => setAnime(prev => ({ ...prev, dates: prev.dates.filter((_, i) => i !== index) }));
@@ -738,7 +807,17 @@ function AddAnimeForm({ token }: { token: string | null }) {
     if (anime.genres.length === 0) return setMsg("❌ Выбери хотя бы один жанр");
 
     try {
-      const submitData = { ...anime, rating: Number(anime.rating) };
+      // готовим тело: seasons отправляем всегда; movies — только если есть валидные URL
+      const submitData: any = { ...anime, rating: Number(anime.rating) };
+      const cleaned = sanitizeMovies(anime.movies);
+      if (cleaned) {
+        submitData.movies = cleaned;
+      } else {
+        delete submitData.movies;
+      }
+
+      console.debug("Отправляем тело для добавления:", submitData);
+
       const res = await fetch("https://anime-1-dv13.onrender.com/api/anime/add", {
         method: "POST",
         headers: {
@@ -762,6 +841,7 @@ function AddAnimeForm({ token }: { token: string | null }) {
         genres: [],
         types: [],
         seasons: [{ seasonNumber: 1, episodes: [] }],
+        movies: [],
       });
     } catch (err: unknown) {
       console.error(err);
@@ -839,7 +919,8 @@ function AddAnimeForm({ token }: { token: string | null }) {
         </div>
 
         <div>
-          <h3 className="font-semibold mt-4 mb-2">Сезоны и серии:</h3>
+          <h3 className="font-semibold mt-4 mb-2">Сезоны и серии</h3>
+
           {anime.seasons.map((season, sIdx) => (
             <div key={sIdx} className="mb-6 border border-gray-600 p-4 rounded-lg bg-gray-800">
               <div className="flex justify-between items-center mb-3">
@@ -854,18 +935,8 @@ function AddAnimeForm({ token }: { token: string | null }) {
                 <div key={eIdx} className="flex flex-col gap-2 mb-3 border-b border-gray-600 pb-3">
                   <div className="flex items-center gap-2">
                     <input placeholder={`Название ${ep.number}-й серии (необязательно)`} value={ep.title || ""}
-                      onChange={(e) => {
-                        setAnime(prev => {
-                          const newSeasons = [...prev.seasons];
-                          const newEpisodes = [...newSeasons[sIdx].episodes];
-                          newEpisodes[eIdx] = { ...newEpisodes[eIdx], title: e.target.value };
-                          newSeasons[sIdx] = { ...newSeasons[sIdx], episodes: newEpisodes };
-                          return { ...prev, seasons: newSeasons };
-                        });
-                      }}
+                      onChange={(e) => { handleEpisodeChange(sIdx, eIdx, 'title', e.target.value); }}
                       className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
-                    <button type="button" onClick={() => deleteEpisode(sIdx, eIdx)}
-                      className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 text-sm">×</button>
                   </div>
 
                   <input placeholder={`Ссылка на ${ep.number}-ю серию`} value={ep.url}
@@ -875,24 +946,16 @@ function AddAnimeForm({ token }: { token: string | null }) {
                   <div className="flex flex-col gap-1">
                     <label className="text-sm opacity-80">Опенинг:</label>
                     <div className="flex gap-2">
-                      <input type="text" placeholder="Начало (например: 1:30)" value={ep.openingStart || ""}
-                        onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'openingStart', e.target.value)}
-                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
-                      <input type="text" placeholder="Конец (например: 2:47)" value={ep.openingEnd || ""}
-                        onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'openingEnd', e.target.value)}
-                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
+                      <input type="text" placeholder="Начало (например: 1:30)" value={ep.openingStart || ""} onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'openingStart', e.target.value)} className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
+                      <input type="text" placeholder="Конец (например: 2:47)" value={ep.openingEnd || ""} onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'openingEnd', e.target.value)} className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
                     <label className="text-sm opacity-80">Эндинг:</label>
                     <div className="flex gap-2">
-                      <input type="text" placeholder="Начало (например: 20:10)" value={ep.endingStart || ""}
-                        onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'endingStart', e.target.value)}
-                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
-                      <input type="text" placeholder="Конец (например: 23:10)" value={ep.endingEnd || ""}
-                        onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'endingEnd', e.target.value)}
-                        className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
+                      <input type="text" placeholder="Начало (например: 20:10)" value={ep.endingStart || ""} onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'endingStart', e.target.value)} className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
+                      <input type="text" placeholder="Конец (например: 23:10)" value={ep.endingEnd || ""} onChange={(e) => handleEpisodeChange(sIdx, eIdx, 'endingEnd', e.target.value)} className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" />
                     </div>
                   </div>
                 </div>
@@ -903,6 +966,41 @@ function AddAnimeForm({ token }: { token: string | null }) {
           ))}
 
           <button type="button" onClick={addSeason} className="bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 transition">+ Добавить сезон</button>
+        </div>
+
+        <div>
+          <h3 className="font-semibold mt-4 mb-2">Фильмы / Короткометражки (опционально)</h3>
+          <div className="space-y-3">
+            {(anime.movies || []).map((m, idx) => (
+              <div key={idx} className="mb-4 border border-gray-600 p-3 rounded-lg bg-gray-800">
+                <div className="flex items-center gap-2">
+                  <input 
+                    placeholder="Название (необязательно)" 
+                    value={m.name || ''} 
+                    onChange={(e) => handleMovieChange(idx, 'name', e.target.value)} 
+                    className="flex-1 p-2 rounded bg-gray-700 border border-gray-600" 
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => deleteMovie(idx)} 
+                    className="bg-red-600 px-2 py-1 rounded hover:bg-red-700 transition"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <input 
+                    placeholder="URL фильма" 
+                    value={m.url || ''} 
+                    onChange={(e) => handleMovieChange(idx, 'url', e.target.value)} 
+                    className="w-full p-2 rounded bg-gray-700 border border-gray-600" 
+                  />
+                </div>
+              </div>
+            ))}
+
+            <button type="button" onClick={addMovie} className="bg-green-600 px-3 py-1 rounded hover:bg-green-700 transition">+ Добавить фильм</button>
+          </div>
         </div>
 
         <button type="submit" className="bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition mt-4">Добавить аниме</button>
@@ -949,7 +1047,7 @@ export default function Admin() {
 
           <button
             onClick={() => setActiveTab("manage")}
-            className={`text-left px-3 py-2 rounded ${activeTab === "manage" ? "bg-indigo-500 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-700"}`}
+            className={`text-left px-3 py-2 rounded ${activeTab === "manage" ? "bg-indigo-500 text-white" : "bg_GRAY-700 text-gray-200 hover:bg-gray-700"}`}
           >
             ⚙️ Управление аниме
           </button>

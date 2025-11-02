@@ -40,7 +40,7 @@ const Verification: React.FC = () => {
   // проверка статуса попыток (фоново)
   const checkAttemptsStatus = async (userEmail: string) => {
     try {
-      const res = await fetch(`https://anime-1-dv13.onrender.com/api/send-code`, {
+      const res = await fetch("http://localhost:5000/api/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail, checkOnly: true }),
@@ -97,13 +97,11 @@ const Verification: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`https://anime-1-dv13.onrender.com/api/send-code`, {
-
+      const res = await fetch("http://localhost:5000/api/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify({ email }),
       });
-
       const data = await res.json();
 
       if (res.ok) {
@@ -139,8 +137,7 @@ const Verification: React.FC = () => {
     setMessage("");
     setLoading(true);
     try {
-      const res = await fetch(`https://anime-1-dv13.onrender.com/api/verify-code`, {
-
+      const res = await fetch("http://localhost:5000/api/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code }),

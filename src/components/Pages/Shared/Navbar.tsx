@@ -111,7 +111,7 @@ function Navbar() {
                 ${isActive ? "text-violet-600 dark:text-violet-400" : "text-black dark:text-white"} hover:text-violet-600 dark:hover:text-violet-400`
               }
             >
-              <LogIn className="w-4 h-4" /> Логин
+              <LogIn className="w-4 h-4" /> Админ Панель
             </NavLink>
           ) : (
             <div className="relative" ref={dropdownRef}>

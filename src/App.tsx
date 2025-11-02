@@ -5,7 +5,7 @@ import Admin from "./components/Pages/Admin";
 import Home from "./components/Pages/Home";
 import PreHome from "./components/Pages/PreHome";
 import Contact from "./components/Pages/Contact";
-import Login from "./components/Pages/Shared/login";
+import Login from "./components/Pages/Shared/login"
 import Register from "./components/Pages/Shared/register";
 import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
