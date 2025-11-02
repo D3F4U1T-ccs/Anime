@@ -37,141 +37,38 @@ async function deleteUnverifiedUsers() {
   }
 }
 setInterval(deleteUnverifiedUsers, 10 * 60 * 1000);
-// === УЛУЧШЕННЫЙ ПРОКСИ (поддержка m3u8 и разных источников) ===
+// === ПРОКСИ (только проксирование) ===
 app.get("/proxy", async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).send("❌ Не указана ссылка (url)");
 
   try {
-    const decodedUrl = decodeURIComponent(targetUrl);
-    
-    // Проверяем валидность URL
-    try {
-      new URL(decodedUrl);
-    } catch (urlErr) {
-      console.error("❌ Некорректный URL:", decodedUrl);
-      return res.status(400).send("Некорректный URL");
-    }
-    
-    console.log("🎥 Проксирую:", decodedUrl);
+    console.log("🎥 Проксирую видео:", targetUrl);
 
-    // Определяем тип контента
-    const isM3U8 = /\.m3u8($|\?)/i.test(decodedUrl);
-    const isVideo = /\.(mp4|webm|mkv|avi|mov|flv|wmv|m4v)($|\?)/i.test(decodedUrl);
-
-    // Заголовки для запроса (копируем нужные из оригинального запроса)
-    const fetchHeaders = {
-      "User-Agent": req.headers["user-agent"] || "Mozilla/5.0",
-      "Accept": req.headers.accept || "*/*",
-      "Referer": req.headers.referer || decodedUrl.split("/").slice(0, 3).join("/"),
-    };
-
-    // Добавляем Range для видео
-    if (req.headers.range && (isVideo || !isM3U8)) {
-      fetchHeaders["Range"] = req.headers.range;
-    }
-
-    // Запрос к целевому URL
-    const response = await fetch(decodedUrl, {
-      headers: fetchHeaders,
-      redirect: "follow",
+    const response = await fetch(targetUrl, {
+      headers: { Range: req.headers.range || "" },
     });
 
     if (!response.ok) {
-      console.error(`❌ Ошибка проксирования: ${response.status} ${response.statusText}`);
       return res.status(response.status).send(`Ошибка загрузки: ${response.statusText}`);
     }
 
-    // Если это m3u8 плейлист - обрабатываем его
-    if (isM3U8) {
-      // Получаем базовый URL для разрешения относительных путей в m3u8
-      let baseOrigin = "";
-      let basePath = "";
-      try {
-        const baseUrl = new URL(decodedUrl);
-        baseOrigin = `${baseUrl.protocol}//${baseUrl.host}`;
-        const pathLastSlash = baseUrl.pathname.lastIndexOf("/");
-        basePath = pathLastSlash >= 0 
-          ? baseUrl.pathname.substring(0, pathLastSlash + 1)
-          : "/";
-      } catch (urlErr) {
-        console.error("❌ Ошибка при парсинге базового URL:", urlErr);
-        return res.status(400).send("Некорректный формат URL для m3u8");
-      }
-      const playlistText = await response.text();
-      
-      // Переписываем ссылки на сегменты через прокси
-      const proxyBaseUrl = `${req.protocol}://${req.get("host")}/proxy?url=`;
-      const processedPlaylist = playlistText.split("\n").map(line => {
-        const trimmed = line.trim();
-        
-        // Пропускаем комментарии и пустые строки (но сохраняем их)
-        if (!trimmed || trimmed.startsWith("#")) {
-          return line;
-        }
-
-        // Если это URL (начинается с http/https) - проксируем
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          return proxyBaseUrl + encodeURIComponent(trimmed);
-        }
-
-        // Если это относительный путь - превращаем в абсолютный и проксируем
-        if (trimmed.startsWith("/")) {
-          const absoluteUrl = baseOrigin + trimmed;
-          return proxyBaseUrl + encodeURIComponent(absoluteUrl);
-        } else {
-          // Относительный путь без ведущего слеша
-          const absoluteUrl = baseOrigin + basePath + trimmed;
-          return proxyBaseUrl + encodeURIComponent(absoluteUrl);
-        }
-      }).join("\n");
-
-      // Устанавливаем заголовки для m3u8
-      res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type");
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      
-      return res.send(processedPlaylist);
-    }
-
-    // Для обычных видео файлов
-    // Переносим заголовки
-    const contentType = response.headers.get("content-type") || (isVideo ? "video/mp4" : "application/octet-stream");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type");
-    
-    if (response.headers.get("content-length")) {
+    // Переносим базовые заголовки, чтобы работало перематывание
+    res.setHeader("Content-Type", response.headers.get("content-type") || "video/mp4");
+    if (response.headers.get("content-length"))
       res.setHeader("Content-Length", response.headers.get("content-length"));
-    }
-    if (response.headers.get("accept-ranges")) {
+    if (response.headers.get("accept-ranges"))
       res.setHeader("Accept-Ranges", response.headers.get("accept-ranges"));
-    }
-    if (response.status === 206) {
-      res.status(206);
-      const range = response.headers.get("content-range");
-      if (range) res.setHeader("Content-Range", range);
-    }
+    if (response.status === 206) res.status(206);
 
     // Потоковая передача
     const passThrough = new stream.PassThrough();
     response.body.pipe(passThrough);
     passThrough.pipe(res);
   } catch (err) {
-    console.error("❌ Ошибка при проксировании:", err.message);
-    res.status(500).send(`Ошибка при проксировании: ${err.message}`);
+    console.error("Ошибка при проксировании видео:", err);
+    res.status(500).send("Ошибка при проксировании видео");
   }
-});
-
-// OPTIONS для CORS preflight
-app.options("/proxy", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type");
-  res.status(200).send();
 });
 
 // ===== Recommendations (store animeId + populate) =====
