@@ -11,6 +11,7 @@ import Verification from "./components/Pages/Verification";
 import ProtectedAdminRoute from "./ProtectedAdminRoute";
 import AnimePage from "./components/Pages/AnimePage";
 import AnimeEpisode from "./components/Pages/AnimeEpisode";
+import AnimeMovie from "./components/Pages/AnimeMovie";
 import OpeningPage from './components/Pages/OpeningPage';
 import Openings from './components/Pages/Openings';
 import OpeningEpisode from './components/Pages/OpeningEpisode';
@@ -65,6 +66,14 @@ function App() {
         <Route
           path="/anime/:slug/season/:seasonNumber/episode/:episodeNumber"
           element={<AnimeEpisode />}
+        />
+        <Route
+          path="/anime/:slug/movie"
+          element={<AnimeMovie />}
+        />
+        <Route
+          path="/anime/:slug/:moviePath"
+          element={<AnimeMovie />}
         />
         <Route path="/anime/:slug" element={<AnimePage />} />
 

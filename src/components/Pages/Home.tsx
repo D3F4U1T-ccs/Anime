@@ -573,43 +573,58 @@ function Home() {
                         <img src={anime.thumbnail} alt={anime.nameEn} className="w-full h-full bg-white/90 dark:bg-gray-800 object-cover scale-110 group-hover:scale-115 transition-transform duration-300" />
                       </div>
 
-                      <div className="-mt-[120px] w-52 bg-white dark:bg-gray-800 pt-10 px-4 text-center transition-all duration-300 relative ">
+                      <div className="-mt-[120px] w-52 bg-white dark:bg-gray-800 pt-10 px-4 text-center transition-all duration-300 relative min-h-[280px] flex flex-col">
                         <h2 className="text-lg mt-24 font-bold text-slate-800 dark:text-white truncate">{anime.nameRu}</h2>
 
-                        {anime.genres && anime.genres.length > 0 && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 justify-center">
-                            <span className="text-purple-500 text-sm">🎭</span>
-                            <span className="truncate max-w-[130px]">{anime.genres.join(", ")}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 justify-center min-h-[20px]">
+                          {anime.genres && anime.genres.length > 0 ? (
+                            <>
+                              <span className="text-purple-500 text-sm">🎭</span>
+                              <span className="truncate max-w-[130px]">{anime.genres.join(", ")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-gray-400 text-sm">🎭</span>
+                              <span className="text-gray-400 text-xs">Нет жанров</span>
+                            </>
+                          )}
+                        </div>
 
-                        {anime.types && anime.types.length > 0 && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400 mt-1 justify-center">
-                            <IoExtensionPuzzle className="text-purple-400 text-sm" />
-                            <span className="truncate max-w-[130px]">{anime.types.join(", ")}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-1 justify-center min-h-[20px]">
+                          {anime.types && anime.types.length > 0 ? (
+                            <>
+                              <IoExtensionPuzzle className="text-purple-400 text-sm" />
+                              <span className="truncate max-w-[130px]">{anime.types.join(", ")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <IoExtensionPuzzle className="text-gray-400 text-sm" />
+                              <span className="text-gray-400 text-xs">Нет типов</span>
+                            </>
+                          )}
+                        </div>
 
                         <div className="flex flex-col items-center gap-2 mt-3">
-                          {hasEpisodes ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 bg-purple-600/10 text-purple-600 text-xs px-2 py-1 rounded-full">
-                                <FaLayerGroup className="text-sm" /> {seasonsCount} <span className="text-gray-500">сез.</span>
-                              </span>
+                          <div className="flex items-center gap-2 min-h-[28px]">
+                            {hasEpisodes && (
+                              <>
+                                <span className="inline-flex items-center gap-1 bg-purple-600/10 text-purple-600 text-xs px-2 py-1 rounded-full">
+                                  <FaLayerGroup className="text-sm" /> {seasonsCount} <span className="text-gray-500">сез.</span>
+                                </span>
 
+                                <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
+                                  <FaListAlt className="text-sm" /> {episodesCount} <span className="text-gray-500">сер.</span>
+                                </span>
+                              </>
+                            )}
+                            {hasMovies && (
                               <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
-                                <FaListAlt className="text-sm" /> {episodesCount} <span className="text-gray-500">сер.</span>
+                                <FaListAlt className="text-sm" /> Фильмов: <span className="text-gray-500">{moviesCount}</span>
                               </span>
-                            </div>
-                          ) : hasMovies ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
-                                <FaListAlt className="text-sm" /> Кино: <span className="text-gray-500">{moviesCount}</span>
-                              </span>
-                            </div>
-                          ) : null}
+                            )}
+                          </div>
 
-                          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300 min-h-[24px] justify-center">
                             <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold">
                               <FaStar /> {anime.rating}
                             </span>
@@ -685,14 +700,15 @@ function Home() {
 
                             <div className="mt-3 text-xs text-gray-500 flex justify-between">
                               <span>Рейтинг: <strong className="text-slate-700 dark:text-slate-200">{anime.rating ?? "—"}</strong></span>
-                              {hasEpisodes ? (
+                              {hasEpisodes && (
                                 <>
                                   <span>Сезонов: <strong>{seasonsCount}</strong></span>
                                   <span>Серий: <strong>{episodesCount}</strong></span>
                                 </>
-                              ) : hasMovies ? (
-                                <span>Кино: <strong>{moviesCount}</strong></span>
-                              ) : null}
+                              )}
+                              {hasMovies && (
+                                <span>Фильмов: <strong>{moviesCount}</strong></span>
+                              )}
                             </div>
                           </div>
                         </div>

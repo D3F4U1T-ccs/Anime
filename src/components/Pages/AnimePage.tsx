@@ -12,6 +12,11 @@ interface Season {
   episodes: Episode[];
 }
 
+interface MovieItem {
+  name?: string;
+  url: string;
+}
+
 interface Anime {
   _id: string;
   slug: string;
@@ -25,6 +30,7 @@ interface Anime {
   genres: string[];
   types: string[];
   ageLimit?: string | number;
+  movies?: MovieItem[];
 }
 
 function formatList(arr?: string[]) {
@@ -103,6 +109,7 @@ export default function AnimePage() {
   const totalSeasons = anime.seasons?.length ?? 0;
   const totalEpisodes =
     anime.seasons?.reduce((acc, s) => acc + (s.episodes?.length ?? 0), 0) ?? 0;
+  const totalMovies = anime.movies?.length ?? 0;
 
   return (
     <div className="mb-20 flex  justify-center px-4 mt-[80px] transition-colors">
@@ -142,6 +149,14 @@ export default function AnimePage() {
                           {totalEpisodes}
                         </span>
                       </span>
+                      {totalMovies > 0 && (
+                        <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs px-3 py-1 rounded-full font-medium">
+                          Фильмов:{" "}
+                          <span className="ml-2 font-semibold text-neutral-900 dark:text-white">
+                            {totalMovies}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
                     {anime.ageLimit && (
@@ -236,6 +251,37 @@ export default function AnimePage() {
             </div>
           ))}
         </div>
+
+        {/* Movies */}
+        {totalMovies > 0 && (
+          <>
+            <h2 className="text-2xl font-bold mt-10 mb-5 text-neutral-800 dark:text-white">
+              Фильмы:
+            </h2>
+            <div className="rounded-2xl bg-gradient-to-tl from-white/85 via-black/15 to-white/85 p-[2px]">
+              <div className="rounded-2xl bg-neutral-400/10 dark:bg-neutral-950/90 shadow-2xl shadow-black/50 border-0 flex-col md:flex-row gap-6 p-6 backdrop-blur-sm">
+                <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-3">
+                  {anime.movies?.map((movie, index) => {
+                    const moviePath = index === 0 
+                      ? `/anime/${anime.slug}/movie`
+                      : `/anime/${anime.slug}/movie${index + 1}`;
+                    const movieLabel = movie.name || `Фильм ${index + 1}`;
+                    
+                    return (
+                      <Link
+                        key={index}
+                        to={moviePath}
+                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white px-3 py-2 rounded-xl text-center font-medium shadow-md transition-transform transform hover:scale-[1.04]"
+                      >
+                        {movieLabel}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

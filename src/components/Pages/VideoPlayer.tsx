@@ -175,7 +175,7 @@ export default function VideoPlayer({
   };
 
   // -----------------------
-  // Init HLS
+  // Init Video (поддержка HLS и нативного видео)
   // -----------------------
   useEffect(() => {
     if (!episodeUrl || !videoRef.current) return;
@@ -197,50 +197,20 @@ export default function VideoPlayer({
     }
     if (initialSeek !== null) pendingSeekRef.current = initialSeek;
 
-    // destroy previous
+    // destroy previous HLS instance
     if (hlsRef.current) {
       try {
         hlsRef.current.destroy();
       } catch { }
       hlsRef.current = null;
     }
-    // мне тут менять?
 
-    const proxiedUrl = episodeUrl.startsWith("http")
-      ? episodeUrl
-      : `https://anime-1-dv13.onrender.com/${episodeUrl}`;
-
-
-
-
-
-    const hls = new Hls({ backBufferLength: Infinity });
-    hlsRef.current = hls;
-
-    const onManifest = (_event: unknown, data: any) => {
-      try {
-        const heights: number[] = (data?.levels || [])
-          .map((l: any) => Number(l.height))
-          .filter((h: number) => !isNaN(h) && h > 0);
-        const uniq = Array.from(new Set(heights)).sort((a, b) => a - b);
-        setQualities(uniq);
-        setCurrentQuality(uniq.length ? "auto" : null);
-      } catch {
-        setQualities([]);
-        setCurrentQuality(null);
-      }
-    };
-
-    const onError = (_evt: any, data: any) => {
-      try {
-        if (data?.fatal) {
-          console.warn("HLS fatal error, trying recoverMediaError...", data);
-          hls.recoverMediaError();
-        }
-      } catch (err) {
-        console.error("HLS error handler failed:", err);
-      }
-    };
+    // Определяем тип видео и проксируем URL
+    const isM3U8 = /\.m3u8($|\?)/i.test(episodeUrl);
+    const proxyBaseUrl = "https://anime-1-dv13.onrender.com/proxy?url=";
+    
+    // Проксируем все URL через наш прокси для обхода CORS и работы с разными источниками
+    const proxiedUrl = `${proxyBaseUrl}${encodeURIComponent(episodeUrl)}`;
 
     const updateProgress = () => {
       if (!video.duration || !isFinite(video.duration)) return;
@@ -338,29 +308,95 @@ export default function VideoPlayer({
       updateProgress();
     };
 
-    hls.on(Hls.Events.MANIFEST_PARSED, onManifest);
-    hls.on(Hls.Events.ERROR, onError);
+    // Для m3u8 используем HLS.js
+    if (isM3U8) {
+      const hls = new Hls({ 
+        backBufferLength: Infinity,
+        xhrSetup: (xhr, url) => {
+          // Убеждаемся, что все запросы идут через прокси
+          // URL уже должен быть проксированным, но на всякий случай проверяем
+          if (!url.includes('/proxy?url=')) {
+            const encoded = encodeURIComponent(url);
+            xhr.open('GET', `${proxyBaseUrl}${encoded}`, true);
+          }
+        }
+      });
+      hlsRef.current = hls;
 
-    hls.attachMedia(video);
-    hls.loadSource(proxiedUrl);
+      const onManifest = (_event: unknown, data: any) => {
+        try {
+          const heights: number[] = (data?.levels || [])
+            .map((l: any) => Number(l.height))
+            .filter((h: number) => !isNaN(h) && h > 0);
+          const uniq = Array.from(new Set(heights)).sort((a, b) => a - b);
+          setQualities(uniq);
+          setCurrentQuality(uniq.length ? "auto" : null);
+        } catch {
+          setQualities([]);
+          setCurrentQuality(null);
+        }
+      };
 
-    video.addEventListener("timeupdate", updateProgress);
-    video.addEventListener("loadedmetadata", onLoadedMeta);
+      const onError = (_evt: any, data: any) => {
+        try {
+          if (data?.fatal) {
+            console.warn("HLS fatal error, trying recoverMediaError...", data);
+            hls.recoverMediaError();
+          }
+        } catch (err) {
+          console.error("HLS error handler failed:", err);
+        }
+      };
 
-    return () => {
-      try {
-        hls.off(Hls.Events.MANIFEST_PARSED, onManifest);
-        hls.off(Hls.Events.ERROR, onError);
-        hls.destroy();
-      } catch { }
-      video.removeEventListener("timeupdate", updateProgress);
-      video.removeEventListener("loadedmetadata", onLoadedMeta);
-      if (seekRetryRef.current) {
-        window.clearInterval(seekRetryRef.current);
-        seekRetryRef.current = null;
-      }
-      if (hlsRef.current === hls) hlsRef.current = null;
-    };
+      hls.on(Hls.Events.MANIFEST_PARSED, onManifest);
+      hls.on(Hls.Events.ERROR, onError);
+      hls.attachMedia(video);
+      hls.loadSource(proxiedUrl);
+
+      video.addEventListener("timeupdate", updateProgress);
+      video.addEventListener("loadedmetadata", onLoadedMeta);
+
+      return () => {
+        try {
+          hls.off(Hls.Events.MANIFEST_PARSED, onManifest);
+          hls.off(Hls.Events.ERROR, onError);
+          hls.destroy();
+        } catch { }
+        video.removeEventListener("timeupdate", updateProgress);
+        video.removeEventListener("loadedmetadata", onLoadedMeta);
+        if (seekRetryRef.current) {
+          window.clearInterval(seekRetryRef.current);
+          seekRetryRef.current = null;
+        }
+        if (hlsRef.current === hls) hlsRef.current = null;
+      };
+    } else {
+      // Для обычных видео файлов (MP4, WebM и т.д.) используем нативный video элемент
+      video.src = proxiedUrl;
+      
+      // Для нативного видео качества недоступны
+      setQualities([]);
+      setCurrentQuality(null);
+
+      const handleError = () => {
+        console.error("Ошибка загрузки видео");
+      };
+
+      video.addEventListener("timeupdate", updateProgress);
+      video.addEventListener("loadedmetadata", onLoadedMeta);
+      video.addEventListener("error", handleError);
+
+      return () => {
+        video.removeEventListener("timeupdate", updateProgress);
+        video.removeEventListener("loadedmetadata", onLoadedMeta);
+        video.removeEventListener("error", handleError);
+        video.src = "";
+        if (seekRetryRef.current) {
+          window.clearInterval(seekRetryRef.current);
+          seekRetryRef.current = null;
+        }
+      };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeUrl, openingStartSec, openingEndSec, endingStartSec, endingEndSec, resumeTime, resumePaused]);
 
