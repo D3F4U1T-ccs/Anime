@@ -8,6 +8,10 @@ import Img from "../img/1682325835_papik-pro-p-stiker-privet-anime-vektor-14.png
 import Logo from "../img/logo.png"
 interface Episode { number: number; }
 interface Season { seasonNumber: number; episodes?: Episode[]; }
+interface MovieItem {
+  name?: string;
+  url: string;
+}
 interface Anime {
   _id: string;
   slug: string;
@@ -20,6 +24,7 @@ interface Anime {
   types?: string[];
   description?: string;
   seasons?: Season[];
+  movies?: MovieItem[];
 }
 
 function Home() {
@@ -548,6 +553,9 @@ function Home() {
                 {filteredList.map((anime) => {
                   const seasonsCount = anime.seasons?.length ?? 0;
                   const episodesCount = anime.seasons?.reduce((acc, s) => acc + (s.episodes?.length ?? 0), 0) ?? 0;
+                  const moviesCount = anime.movies?.length ?? 0;
+                  const hasEpisodes = episodesCount > 0;
+                  const hasMovies = moviesCount > 0;
 
                   // popover pos: kept simple (you had popoverSide logic earlier; kept as-is)
                   const side = popoverSide[anime._id] ?? "center";
@@ -583,15 +591,23 @@ function Home() {
                         )}
 
                         <div className="flex flex-col items-center gap-2 mt-3">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 bg-purple-600/10 text-purple-600 text-xs px-2 py-1 rounded-full">
-                              <FaLayerGroup className="text-sm" /> {seasonsCount} <span className="text-gray-500">сез.</span>
-                            </span>
+                          {hasEpisodes ? (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 bg-purple-600/10 text-purple-600 text-xs px-2 py-1 rounded-full">
+                                <FaLayerGroup className="text-sm" /> {seasonsCount} <span className="text-gray-500">сез.</span>
+                              </span>
 
-                            <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
-                              <FaListAlt className="text-sm" /> {episodesCount} <span className="text-gray-500">сер.</span>
-                            </span>
-                          </div>
+                              <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
+                                <FaListAlt className="text-sm" /> {episodesCount} <span className="text-gray-500">сер.</span>
+                              </span>
+                            </div>
+                          ) : hasMovies ? (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
+                                <FaListAlt className="text-sm" /> Кино: <span className="text-gray-500">{moviesCount}</span>
+                              </span>
+                            </div>
+                          ) : null}
 
                           <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
                             <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold">
@@ -669,8 +685,14 @@ function Home() {
 
                             <div className="mt-3 text-xs text-gray-500 flex justify-between">
                               <span>Рейтинг: <strong className="text-slate-700 dark:text-slate-200">{anime.rating ?? "—"}</strong></span>
-                              <span>Сезонов: <strong>{seasonsCount}</strong></span>
-                              <span>Серий: <strong>{episodesCount}</strong></span>
+                              {hasEpisodes ? (
+                                <>
+                                  <span>Сезонов: <strong>{seasonsCount}</strong></span>
+                                  <span>Серий: <strong>{episodesCount}</strong></span>
+                                </>
+                              ) : hasMovies ? (
+                                <span>Кино: <strong>{moviesCount}</strong></span>
+                              ) : null}
                             </div>
                           </div>
                         </div>

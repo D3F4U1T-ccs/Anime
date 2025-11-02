@@ -394,16 +394,12 @@ function AnimeManager({ token }: { token: string | null }) {
     if (!token) return setMsg("Нет токена администратора");
     setMsg("");
     try {
-      // формируем тело: отправляем seasons всегда, movies — только если есть непустые URL
+      // формируем тело: отправляем seasons всегда, movies — всегда отправляем (даже пустой массив для удаления)
       const body: any = { ...selected, rating: Number(selected.rating) };
 
       const cleaned = sanitizeMovies(selected.movies);
-      if (cleaned) {
-        body.movies = cleaned;
-      } else {
-        // если нет пригодных фильмов — удаляем свойство, чтобы не перезаписывать на сервере
-        delete body.movies;
-      }
+      // всегда отправляем movies (даже если пустой массив), чтобы сервер мог удалить фильмы если нужно
+      body.movies = cleaned || [];
 
       // для диагностики (можно удалить в проде)
       console.debug("Отправляем body для сохранения:", body);

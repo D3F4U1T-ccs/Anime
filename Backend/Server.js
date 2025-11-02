@@ -185,7 +185,7 @@ app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
     }
 
     // movies: если пришли — форматируем; если после форматирования НЕ пусто — перезаписываем;
-    // если пусто — НЕ трогаем поле (чтобы случайно не удалить существующие фильмы).
+    // если пусто (массив пустой) — удаляем все фильмы (пользователь явно удалил их).
     if (update.movies !== undefined) {
       if (!Array.isArray(update.movies)) {
         console.warn('PUT.movies пришёл в некорректном формате, игнорируем поле movies');
@@ -196,11 +196,13 @@ app.put('/api/anime/:id', verifyAdmin, async (req, res) => {
 
         console.log('PUT /api/anime/:id formattedMovies:', JSON.stringify(formattedMovies, null, 2));
 
+        // если пришёл пустой массив или после фильтрации массив пустой — удаляем все фильмы
         if (formattedMovies.length > 0) {
           anime.movies = formattedMovies;
         } else {
-          // НЕ удаляем anime.movies, если formattedMovies пустой — это ключевое изменение.
-          console.log('PUT: movies пришёл, но после фильтрации пуст — существующие movies не трогаем');
+          // удаляем все фильмы, так как пользователь явно отправил пустой массив
+          anime.movies = [];
+          console.log('PUT: movies пришёл пустым — удаляем все фильмы');
         }
       }
       delete update.movies;
