@@ -221,7 +221,7 @@ function Home() {
   const ALL_TYPES = [
     "Боевые искусства", "Вампиры", "Военное", "Демоны", "Игры", "История",
     "Космос", "Магия", "Меха", "Музыка", "Самураи", "Сёнен",
-    "Спорт", "Суперсила", "Ужасы", "Школа", "Исэкай"
+    "Спорт", "Суперсила", "Ужасы", "Школа", "Исэкай", "Фильм"
   ];
 
   const availableGenres = useMemo(() => {
@@ -606,7 +606,7 @@ function Home() {
 
                         <div className="flex flex-col items-center gap-2 mt-3">
                           <div className="flex items-center gap-2 min-h-[28px]">
-                            {hasEpisodes && (
+                            {hasEpisodes && !hasMovies && (
                               <>
                                 <span className="inline-flex items-center gap-1 bg-purple-600/10 text-purple-600 text-xs px-2 py-1 rounded-full">
                                   <FaLayerGroup className="text-sm" /> {seasonsCount} <span className="text-gray-500">сез.</span>
@@ -617,12 +617,26 @@ function Home() {
                                 </span>
                               </>
                             )}
-                            {hasMovies && (
+
+                            {hasMovies && !hasEpisodes && (
                               <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
                                 <FaListAlt className="text-sm" /> Фильмов: <span className="text-gray-500">{moviesCount}</span>
                               </span>
                             )}
+
+                            {hasEpisodes && hasMovies && (
+                              <>
+                                <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
+                                  <FaListAlt className="text-sm" /> {episodesCount} <span className="text-gray-500">сер.</span>
+                                </span>
+
+                                <span className="inline-flex items-center gap-1 bg-emerald-600/10 text-emerald-600 text-xs px-2 py-1 rounded-full">
+                                  <FaListAlt className="text-sm" /> Фильмов: <span className="text-gray-500">{moviesCount}</span>
+                                </span>
+                              </>
+                            )}
                           </div>
+
 
                           <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300 min-h-[24px] justify-center">
                             <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold">
@@ -698,18 +712,28 @@ function Home() {
                               {anime.types?.slice(0, 4).map((t) => (<span key={t} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">{t}</span>))}
                             </div>
 
-                            <div className="mt-3 text-xs text-gray-500 flex justify-between">
+                            <div className="mt-3 text-xs text-gray-500 flex flex-wrap justify-between gap-2">
                               <span>Рейтинг: <strong className="text-slate-700 dark:text-slate-200">{anime.rating ?? "—"}</strong></span>
-                              {hasEpisodes && (
+
+                              {hasEpisodes && !hasMovies && (
                                 <>
                                   <span>Сезонов: <strong>{seasonsCount}</strong></span>
                                   <span>Серий: <strong>{episodesCount}</strong></span>
                                 </>
                               )}
-                              {hasMovies && (
+
+                              {hasMovies && !hasEpisodes && (
                                 <span>Фильмов: <strong>{moviesCount}</strong></span>
                               )}
+
+                              {hasEpisodes && hasMovies && (
+                                <>
+                                  <span>Серий: <strong>{episodesCount}</strong></span>
+                                  <span>Фильмов: <strong>{moviesCount}</strong></span>
+                                </>
+                              )}
                             </div>
+
                           </div>
                         </div>
                         {/* end info */}
