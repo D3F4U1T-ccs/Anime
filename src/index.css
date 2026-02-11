@@ -1,3 +1,5 @@
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,7 +30,10 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    --radius: 0.5rem;
+
+    /* Градиент для светлой темы */
+    --background-gradient: linear-gradient(to bottom right, #595959, #ffffff, #595959);
   }
 
   .dark {
@@ -55,7 +60,10 @@
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
+
+    /* Градиент для тёмной темы */
+    --background-gradient: linear-gradient(to bottom right, #404045, #000000, #404045);
   }
 }
 
@@ -66,16 +74,19 @@
 
   body {
     @apply bg-background text-foreground;
+
+    /* Применяем градиент как фон через переменную */
+    background-image: var(--background-gradient);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
   }
 }
 
 
-/* Chrome, Edge, Safari */
-::-webkit-scrollbar {
-  display: none;
-}
-
-/* Firefox */
-* {
-  scrollbar-width: none;
+html,
+body {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  /* предотвращает «потяну» на мобильных */
 }

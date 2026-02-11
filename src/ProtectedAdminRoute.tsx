@@ -11,7 +11,7 @@ function ProtectedAdminRoute({ children }: { children: JSX.Element }) {
       return;
     }
 
-    fetch("http://localhost:5000/api/check-admin", {
+    fetch("https://anime-1-dv13.onrender.com/api/check-admin", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => setIsAllowed(res.ok))
@@ -20,9 +20,21 @@ function ProtectedAdminRoute({ children }: { children: JSX.Element }) {
 
   if (isAllowed === null) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh] text-lg">
-        Проверка прав администратора...
+      <div className="">
+        <div className="flex justify-center items-center min-h-[60vh] text-lg">
+          Проверка прав администратора...
+        </div>
+          <div className="flex flex-row justify-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce"></div>
+            <div
+              className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.3s]"
+            ></div>
+            <div
+              className="w-4 h-4 rounded-full bg-black dark:bg-white animate-bounce [animation-delay:-.5s]"
+            ></div>
+          </div>
       </div>
+
     );
   }
 

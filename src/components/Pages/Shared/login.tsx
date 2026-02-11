@@ -1,25 +1,45 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
+import { MailCheck } from "lucide-react";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Card, CardHeader, CardContent } from "../../ui/card";
+import { Separator } from "../../ui/separator";
+import LogImg from "../../img/10106181308166125.gif";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMsg("");
+    setShowVerificationModal(false);
+    // ready
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch("https://anime-1-dv13.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+
+      if (!res.ok) {
+        if (data.action === "VERIFY_REQUIRED") {
+          localStorage.setItem("pendingEmail", email);
+          setShowVerificationModal(true);
+          setMsg("");
+          return;
+        }
+
+        throw new Error(data.message);
+      }
 
       login(data.user);
       localStorage.setItem("token", data.token);
@@ -29,56 +49,98 @@ function Login() {
     }
   };
 
+  const redirectToVerification = () => {
+    setShowVerificationModal(false);
+    navigate("/verification");
+  };
+
   return (
-    <div className="min-h-[100vh] flex items-center justify-center bg-gradient-to-br from-black via-neutral-900 to-gray-800 text-white px-4">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8 animate-fadeIn">
-        <h2 className="text-3xl font-extrabold text-center mb-6 tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Вход в аккаунт
-        </h2>
+    <div className="flex h-screen items-center justify-center px-4">
+      {/* 💡 Модальное окно */}
+      {showVerificationModal && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-700 p-8 rounded-lg shadow-2xl max-w-sm w-full text-center">
+            <MailCheck size={48} className="text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-white">
+              Требуется подтверждение!
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Ваш аккаунт не подтверждён. Пожалуйста, подтвердите свою почту.
+            </p>
+            <button
+              onClick={redirectToVerification}
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded transition-colors w-full"
+            >
+              Перейти к подтверждению
+            </button>
+          </div>
+        </div>
+      )}
 
-        {msg && (
-          <div className="text-red-400 text-sm text-center mb-4">{msg}</div>
-        )}
+      <div className="rounded-2xl bg-gradient-to-tl from-white/85 via-black/15 to-white/85 p-[2px]">
+        <Card className="w-[400px] max-w-md rounded-2xl bg-neutral-400/30 dark:bg-neutral-950/90 shadow-2xl shadow-black/50 backdrop-blur-sm border-0">
+          <CardHeader className="text-center space-y-2">
+            <div className="flex justify-center">
+              <div className="h-[100px] w-[100px] flex items-center justify-center rounded-full bg-violet-600 overflow-hidden">
+                <img
+                  src={LogImg}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-neutral-600 dark:text-white">
+              Вход в Flow2Anime
+            </h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              Вход в аккаунт{" "}
+              <span className="text-violet-600">только</span> для админов!
+            </p>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Введите Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder-gray-400
-              focus:ring-2 focus:ring-white focus:outline-none transition-all"
-            required
-          />
+          <CardContent className="space-y-4">
+            {msg && <p className="text-red-500 text-sm text-center">{msg}</p>}
 
-          <input
-            type="password"
-            placeholder="Введите пароль"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder-gray-400
-              focus:ring-2 focus:ring-white focus:outline-none transition-all"
-            required
-          />
+            <div className="flex items-center gap-2">
+              <Separator className="flex-1 bg-neutral-700" />
+              <span className="text-xs text-neutral-500">Введите данные</span>
+              <Separator className="flex-1 bg-neutral-700" />
+            </div>
 
-          <button
-            type="submit"
-            className="mt-2 bg-gradient-to-r from-white to-gray-400 text-black font-bold py-2.5 rounded-lg
-              shadow-lg hover:shadow-white/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
-          >
-            Войти
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Input
+                type="email"
+                placeholder="Электронная почта"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
+                required
+              />
 
-        <p className="text-sm text-center text-gray-400 mt-5">
-          Нет аккаунта?{" "}
-          <Link
-            to="/register"
-            className="text-white font-semibold hover:text-gray-300 transition-colors"
-          >
-            Зарегистрироваться
-          </Link>
-        </p>
+              <Input
+                type="password"
+                placeholder="Пароль"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="rounded-xl bg-neutral-400/40 dark:bg-neutral-900 border-neutral-800 text-neutral-800 dark:text-white placeholder-neutral-500"
+                required
+              />
+
+              <Button
+                type="submit"
+                className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 shadow-md"
+              >
+                Войти
+              </Button>
+
+              <p className="text-sm text-center text-neutral-500">
+                Хочешь в админы?
+                {" "}
+                пиши нам в тг
+              </p>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
